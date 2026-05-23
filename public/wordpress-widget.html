@@ -1,0 +1,193 @@
+<!--
+  BAĞIŞ DURUMU SORGULAMA WIDGET'I
+  ===============================
+
+  KULLANIM:
+  1. Aşağıdaki BS_API_URL ve BS_SECRET_KEY değişkenlerini kendi değerlerinizle değiştirin.
+  2. Bu HTML bloğunu WordPress sayfanıza "Özel HTML" bloğu olarak ekleyin.
+
+  URL PARAMETRESİ İLE OTOMATİK SORGULAMA:
+  ─────────────────────────────────────────
+  Bu widget, URL'den uniq kodu otomatik okuyup sorgu yapabilir:
+
+  Desteklenen parametreler:
+    ?kod=AB12CD34
+    ?uniq_kod=AB12CD34
+    ?code=AB12CD34
+    #AB12CD34            (hash ile de çalışır)
+
+  Örnek kampanya linkleri (UTM ile birlikte):
+    https://siteniz.com/sorgulama?kod=AB12CD34&utm_source=sms
+    https://siteniz.com/sorgulama?kod=AB12CD34&utm_source=email
+-->
+<div id="bagis-sorgulama-widget">
+  <style>
+    #bagis-sorgulama-widget { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 720px; margin: 0 auto; padding: 10px; }
+    .bs-kart { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .bs-baslik { font-size: 1.3rem; font-weight: 700; color: #111827; margin-bottom: 8px; }
+    .bs-aciklama { font-size: 0.9rem; color: #6b7280; margin-bottom: 22px; }
+    .bs-input-grup { display: flex; gap: 10px; flex-wrap: wrap; }
+    .bs-input { flex: 1; min-width: 180px; padding: 11px 16px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; outline: none; text-transform: uppercase; letter-spacing: 2px; transition: border-color 0.2s; }
+    .bs-input:focus { border-color: #2563eb; }
+    .bs-input::placeholder { letter-spacing: 0; text-transform: none; color: #9ca3af; }
+    .bs-btn { padding: 11px 24px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+    .bs-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .bs-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .bs-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: bs-spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes bs-spin { to { transform: rotate(360deg); } }
+    .bs-mesaj { margin-top: 18px; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; }
+    .bs-hata { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .bs-bilgi { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .bs-sonuc { margin-top: 22px; display: none; }
+    .bs-bagisci-bilgi { background: #f9fafb; border-radius: 10px; padding: 16px 20px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .bs-bagisci-adi { font-size: 1.05rem; font-weight: 700; color: #111827; }
+    .bs-kod-badge { font-family: monospace; font-size: 1rem; background: #2563eb; color: #fff; padding: 5px 14px; border-radius: 20px; letter-spacing: 3px; }
+    .bs-uyari-badge { font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 12px; }
+    .bs-tablo-baslik { font-size: 0.85rem; font-weight: 600; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .bs-tablo-wrapper { overflow-x: auto; }
+    .bs-tablo { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .bs-tablo th { background: #f3f4f6; padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; font-size: 0.82rem; }
+    .bs-tablo td { padding: 11px 14px; border-bottom: 1px solid #f3f4f6; color: #1f2937; vertical-align: middle; }
+    .bs-tablo tr:last-child td { border-bottom: none; }
+    .bs-tablo tr:hover td { background: #f9fafb; }
+    .bs-durum { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+    .bs-durum-bekliyor { background: #fef9c3; color: #a16207; }
+    .bs-durum-kesildi  { background: #dcfce7; color: #166534; }
+    .bs-bos { text-align: center; padding: 30px; color: #9ca3af; font-size: 0.9rem; }
+    @media (max-width: 500px) { .bs-kart { padding: 18px; } .bs-tablo th, .bs-tablo td { padding: 8px 10px; font-size: 0.82rem; } }
+  </style>
+
+  <div class="bs-kart">
+    <div class="bs-baslik">Bağış Durumu Sorgulama</div>
+    <div class="bs-aciklama">Size verilen 8 haneli kodu girerek bağış durumunuzu öğrenebilirsiniz.</div>
+    <div class="bs-input-grup">
+      <input class="bs-input" type="text" id="bs-kod-input" placeholder="Örn: A9K2M7Q1" maxlength="8" autocomplete="off">
+      <button class="bs-btn" id="bs-sorgula-btn" onclick="bsSorgula()">Sorgula</button>
+    </div>
+    <div id="bs-mesaj" class="bs-mesaj" style="display:none"></div>
+    <div class="bs-sonuc" id="bs-sonuc">
+      <div class="bs-bagisci-bilgi" id="bs-bagisci-bilgi"></div>
+      <div class="bs-tablo-baslik">Bağış Kayıtları</div>
+      <div class="bs-tablo-wrapper">
+        <table class="bs-tablo">
+          <thead>
+            <tr><th>#</th><th>Adı Soyadı</th><th>Kimin Adına</th><th>Referans</th><th>Durum</th></tr>
+          </thead>
+          <tbody id="bs-tablo-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ▼ BURAYA KENDİ DEĞERLERİNİZİ GİRİN ▼
+    var BS_API_URL    = '{{API_URL}}';
+    var BS_SECRET_KEY = '{{SECRET_KEY}}';
+    // ▲ BURAYA KENDİ DEĞERLERİNİZİ GİRİN ▲
+
+    var bsSorguluyor = false;
+
+    document.getElementById('bs-kod-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') bsSorgula();
+    });
+
+    async function bsSorgula() {
+      if (bsSorguluyor) return;
+
+      var kod = document.getElementById('bs-kod-input').value.trim().toUpperCase();
+      document.getElementById('bs-kod-input').value = kod;
+      var mesajEl = document.getElementById('bs-mesaj');
+      var sonucEl = document.getElementById('bs-sonuc');
+      var btn     = document.getElementById('bs-sorgula-btn');
+
+      mesajEl.style.display = 'none';
+      sonucEl.style.display = 'none';
+
+      if (!kod || kod.length !== 8) {
+        mesajEl.className = 'bs-mesaj bs-hata';
+        mesajEl.textContent = 'Lütfen 8 karakterli kodunuzu eksiksiz girin.';
+        mesajEl.style.display = 'block';
+        return;
+      }
+
+      bsSorguluyor = true;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="bs-spinner"></span>Sorgulanıyor...';
+
+      try {
+        var res = await fetch(BS_API_URL + '/api/sorgula', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-secret-key': BS_SECRET_KEY },
+          body: JSON.stringify({ uniq_kod: kod }),
+        });
+        var data = await res.json();
+
+        if (!data.basarili) {
+          mesajEl.className = 'bs-mesaj bs-hata';
+          mesajEl.textContent = data.mesaj || 'Kayıt bulunamadı.';
+          mesajEl.style.display = 'block';
+          return;
+        }
+        bsSonucGoster(data);
+      } catch (err) {
+        mesajEl.className = 'bs-mesaj bs-hata';
+        mesajEl.textContent = 'Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin.';
+        mesajEl.style.display = 'block';
+      } finally {
+        bsSorguluyor = false;
+        btn.disabled = false;
+        btn.textContent = 'Sorgula';
+      }
+    }
+
+    function bsSonucGoster(data) {
+      var bagisci = data.bagisci;
+      var bagislar = data.bagislar || [];
+
+      var uyariBadge = (!bagisci.ulke_kodu_var_mi && bagisci.telefon)
+        ? '<span class="bs-uyari-badge">Ülke kodu eksik</span>' : '';
+
+      document.getElementById('bs-bagisci-bilgi').innerHTML =
+        '<div><div class="bs-bagisci-adi">' + bsEscHtml(bagisci.ad_soyad) + '</div>' +
+        (uyariBadge ? '<div style="margin-top:6px">' + uyariBadge + '</div>' : '') + '</div>' +
+        '<div class="bs-kod-badge">' + bsEscHtml(bagisci.uniq_kod) + '</div>';
+
+      var tbody = document.getElementById('bs-tablo-body');
+      if (bagislar.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="bs-bos">Bu koda ait bağış kaydı bulunamadı.</td></tr>';
+      } else {
+        tbody.innerHTML = bagislar.map(function(b, i) {
+          var durumClass = b.durum === 'kesildi' ? 'bs-durum-kesildi' : 'bs-durum-bekliyor';
+          var durumMetin = b.durum === 'kesildi' ? 'Kesildi' : 'Bekliyor';
+          return '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + bsEscHtml(b.ad_soyad || '-') + '</td>' +
+            '<td>' + bsEscHtml(b.kimin_adina || '-') + '</td>' +
+            '<td>' + bsEscHtml(b.referans || '-') + '</td>' +
+            '<td><span class="bs-durum ' + durumClass + '">' + durumMetin + '</span></td>' +
+          '</tr>';
+        }).join('');
+      }
+      document.getElementById('bs-sonuc').style.display = 'block';
+    }
+
+    function bsEscHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // URL parametresi veya hash ile otomatik sorgulama
+    (function bsOtomatikSorgu() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var kod = params.get('kod') || params.get('uniq_kod') || params.get('code');
+        if (!kod && window.location.hash && window.location.hash.length > 1) {
+          kod = window.location.hash.substring(1);
+        }
+        if (kod && kod.length === 8) {
+          document.getElementById('bs-kod-input').value = kod.toUpperCase();
+          setTimeout(bsSorgula, 100);
+        }
+      } catch (e) {}
+    })();
+  </script>
+</div>

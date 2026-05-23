@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bağış Yönetim Paneli</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+    /* LOGIN */
+    #login-ekrani { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    #login-ekrani .card { width: 100%; max-width: 400px; }
+    #login-ekrani h2 { text-align: center; margin-bottom: 24px; font-size: 1.2rem; }
+
+    /* LAYOUT */
+    #panel-ekrani { display: none; min-height: 100vh; }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { width: 220px; min-height: 100vh; background: #16213e; display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-logo-text span { color: #fff; font-weight: 700; font-size: 1rem; line-height: 1.3; display: block; }
+    .sidebar-logo-text small { color: rgba(255,255,255,0.4); font-size: 0.72rem; }
+    .btn-ayarlar { background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: all 0.15s; flex-shrink: 0; }
+    .btn-ayarlar:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; color: rgba(255,255,255,0.65); cursor: pointer; font-size: 0.9rem; transition: all 0.15s; border-left: 3px solid transparent; user-select: none; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; border-left-color: #4f9cf9; }
+    .nav-item .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .btn-cikis { width: 100%; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
+    .btn-cikis:hover { background: rgba(231,76,60,0.25); }
+
+    /* MAIN */
+    .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+    .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-size: 1.05rem; font-weight: 700; color: #111827; }
+    .topbar-sub { font-size: 0.8rem; color: #9ca3af; margin-top: 2px; }
+    .content { padding: 28px; flex: 1; }
+
+    /* CARDS */
+    .card { background: #fff; border-radius: 12px; padding: 24px 28px; box-shadow: 0 1px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+    .card-title { font-size: 1rem; font-weight: 700; color: #111827; }
+
+    /* FORMS */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+    .form-control { width: 100%; padding: 9px 13px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    .form-control:focus { border-color: #4f9cf9; }
+    textarea.form-control { resize: vertical; min-height: 100px; font-family: inherit; line-height: 1.5; }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all 0.15s; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #16213e; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0f3460; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+    .btn-outline { background: #fff; color: #374151; border: 1.5px solid #e5e7eb; }
+    .btn-outline:hover:not(:disabled) { border-color: #4f9cf9; color: #4f9cf9; }
+    .btn-placeholder { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .btn-placeholder:hover { background: #dbeafe; }
+    .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+    /* ALERTS */
+    .alert { padding: 11px 15px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 14px; }
+    .alert-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .alert-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .alert-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+    /* DRAG DROP */
+    .drop-zone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .drop-zone.drag-over { border-color: #4f9cf9; background: #eff6ff; }
+    .drop-zone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .drop-zone p { color: #9ca3af; font-size: 0.88rem; }
+    .drop-zone p strong { color: #4f9cf9; }
+    .drop-zone input[type="file"] { display: none; }
+    .file-chosen { margin-top: 8px; font-size: 0.83rem; color: #16a34a; font-weight: 600; }
+
+    /* ÖZET */
+    .ozet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .ozet-item { background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center; }
+    .ozet-item .sayi { font-size: 1.8rem; font-weight: 700; color: #16213e; }
+    .ozet-item .etiket { font-size: 0.72rem; color: #9ca3af; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+    /* TABLE */
+    .tablo-araclari { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+    .arama-input { padding: 8px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.88rem; outline: none; width: 240px; }
+    .arama-input:focus { border-color: #4f9cf9; }
+    .filtre-select { padding: 8px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.88rem; outline: none; }
+    .tablo-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    thead th { background: #f9fafb; padding: 10px 14px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
+    tbody td { padding: 11px 14px; border-bottom: 1px solid #f9fafb; color: #374151; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #fafafa; }
+    .mono { font-family: monospace; font-size: 0.85rem; letter-spacing: 1px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .badge-bekliyor { background: #fef9c3; color: #a16207; }
+    .badge-kesildi { background: #dcfce7; color: #166534; }
+    .badge-uyari { background: #fff7ed; color: #c2410c; }
+    .empty { text-align: center; padding: 40px; color: #d1d5db; font-size: 0.9rem; }
+
+    /* PAGINATION */
+    .pagination { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 14px; font-size: 0.85rem; color: #6b7280; }
+    .pagination button { padding: 5px 12px; border: 1.5px solid #e5e7eb; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.82rem; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination button:hover:not(:disabled) { border-color: #4f9cf9; color: #4f9cf9; }
+
+    /* CHECKBOX */
+    .cb-cell { width: 36px; text-align: center; }
+    input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #16213e; }
+
+    /* SMS SAYFASI */
+    .sms-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+    @media (max-width: 900px) { .sms-grid { grid-template-columns: 1fr; } }
+    .onizleme-kutu { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; font-size: 0.9rem; line-height: 1.6; color: #374151; min-height: 80px; white-space: pre-wrap; word-break: break-word; }
+    .karakter-say { font-size: 0.78rem; color: #9ca3af; text-align: right; margin-top: 4px; }
+    .aralik-row { display: flex; align-items: center; gap: 10px; }
+    .aralik-row input { width: 100px; }
+    .secim-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border-radius: 8px; margin-bottom: 10px; font-size: 0.85rem; }
+    .secim-bar strong { color: #16213e; }
+    .progress-kutu { margin-top: 16px; display: none; }
+    .progress-bar-wrap { background: #e5e7eb; border-radius: 20px; height: 8px; overflow: hidden; margin: 8px 0; }
+    .progress-bar-fill { height: 100%; background: #16a34a; border-radius: 20px; transition: width 0.3s; }
+    .gonderim-log { max-height: 200px; overflow-y: auto; font-size: 0.78rem; background: #f9fafb; border-radius: 8px; padding: 10px 14px; margin-top: 8px; }
+    .log-item { padding: 3px 0; border-bottom: 1px solid #f3f4f6; display: flex; gap: 8px; }
+    .log-item:last-child { border-bottom: none; }
+    .log-ok { color: #16a34a; }
+    .log-err { color: #dc2626; }
+    .log-skip { color: #9ca3af; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.acik { display: flex; }
+    .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 480px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-title { font-size: 1.05rem; font-weight: 700; }
+    .modal-kapat { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #9ca3af; line-height: 1; padding: 0 4px; }
+    .modal-kapat:hover { color: #374151; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+    /* SPINNER */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sayfa { display: none; }
+    .sayfa.aktif { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- GİRİŞ -->
+<div id="login-ekrani">
+  <div class="card">
+    <h2>Yönetim Paneli</h2>
+    <div id="login-hata" class="alert alert-error" style="display:none"></div>
+    <div class="form-group">
+      <label>Kullanıcı Adı</label>
+      <input type="text" class="form-control" id="kullanici-adi" autocomplete="username" placeholder="admin">
+    </div>
+    <div class="form-group">
+      <label>Şifre</label>
+      <input type="password" class="form-control" id="sifre" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%" id="giris-btn" onclick="girisYap()">Giriş Yap</button>
+  </div>
+</div>
+
+<!-- AYARLAR MODAL -->
+<div class="modal-overlay" id="ayarlar-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ Netgsm Ayarları</span>
+      <button class="modal-kapat" onclick="modalKapat()">×</button>
+    </div>
+    <div id="ayarlar-hata" class="alert alert-error" style="display:none"></div>
+    <div id="ayarlar-basari" class="alert alert-success" style="display:none"></div>
+    <div class="form-group">
+      <label>Kullanıcı Adı (Abone No)</label>
+      <input type="text" class="form-control" id="cfg-username" placeholder="850xxxxxxx">
+    </div>
+    <div class="form-group">
+      <label>API Şifresi</label>
+      <input type="password" class="form-control" id="cfg-password" placeholder="Boş bırakırsan değişmez">
+    </div>
+    <div class="form-group">
+      <label>Gönderici Başlığı (msgheader)</label>
+      <input type="text" class="form-control" id="cfg-msgheader" placeholder="ONAYLIBASLIK">
+    </div>
+    <div class="form-group">
+      <label>Proje Adı (appname — opsiyonel)</label>
+      <input type="text" class="form-control" id="cfg-appname" placeholder="Bagis Sistemi">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="modalKapat()">İptal</button>
+      <button class="btn btn-primary" id="ayarlar-kaydet-btn" onclick="ayarlariKaydet()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div id="panel-ekrani">
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-text">
+          <span>Bağış Yönetim</span>
+          <small>Admin Paneli</small>
+        </div>
+        <button class="btn-ayarlar" title="Netgsm Ayarları" onclick="ayarlarAc()">⚙️</button>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-sayfa="excel" onclick="sayfaGec('excel', this)">
+          <span class="nav-icon">📤</span> Excel Yükle
+        </div>
+        <div class="nav-item" data-sayfa="bagislar" onclick="sayfaGec('bagislar', this)">
+          <span class="nav-icon">🎁</span> Bağışlar
+        </div>
+        <div class="nav-item" data-sayfa="bagiscilar" onclick="sayfaGec('bagiscilar', this)">
+          <span class="nav-icon">👥</span> Bağışçılar
+        </div>
+        <div class="nav-item" data-sayfa="sms" onclick="sayfaGec('sms', this)">
+          <span class="nav-icon">💬</span> SMS Gönder
+        </div>
+        <div class="nav-item" data-sayfa="widget" onclick="sayfaGec('widget', this)">
+          <span class="nav-icon">🌐</span> WordPress Widget
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-cikis" onclick="cikisYap()">Çıkış Yap</button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title" id="topbar-title">Excel Yükle</div>
+          <div class="topbar-sub" id="topbar-sub">Excel dosyası ile toplu bağış yükle</div>
+        </div>
+      </div>
+      <div class="content">
+
+        <!-- EXCEL YÜKLE -->
+        <div id="sayfa-excel" class="sayfa aktif">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Dosya Yükle</span></div>
+            <div id="yukle-hata" class="alert alert-error" style="display:none"></div>
+            <div id="yukle-basari" class="alert alert-success" style="display:none"></div>
+            <div class="form-group">
+              <label>Varsayılan Durum</label>
+              <select class="form-control" id="varsayilan-durum">
+                <option value="bekliyor">Bekliyor</option>
+                <option value="kesildi">Kesildi</option>
+              </select>
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Excel'de "Durum" sütunu boşsa bu değer kullanılır.</small>
+            </div>
+            <div class="form-group">
+              <label>Excel Dosyası (.xls / .xlsx)</label>
+              <div class="drop-zone" id="drop-zone" onclick="document.getElementById('dosya-input').click()">
+                <div class="icon">📊</div>
+                <p><strong>Dosyayı buraya sürükle</strong> veya tıkla</p>
+                <p>.xls ve .xlsx — max 10MB</p>
+                <div class="file-chosen" id="dosya-adi"></div>
+                <input type="file" id="dosya-input" accept=".xls,.xlsx" onchange="dosyaSec(this)">
+              </div>
+            </div>
+            <button class="btn btn-primary" id="yukle-btn" onclick="excelYukle()" disabled style="width:100%">Yükle</button>
+          </div>
+          <div id="yukle-sonuc" style="display:none">
+            <div class="card">
+              <div class="card-header"><span class="card-title">Yükleme Sonucu</span></div>
+              <div class="ozet-grid" id="ozet-grid"></div>
+            </div>
+            <div id="hatalar-card"></div>
+          </div>
+        </div>
+
+        <!-- BAĞIŞLAR -->
+        <div id="sayfa-bagislar" class="sayfa">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Bağış Listesi</span>
+              <span id="bagislar-toplam" style="font-size:0.82rem;color:#9ca3af"></span>
+            </div>
+            <div class="tablo-araclari">
+              <input class="arama-input" id="bagislar-arama" placeholder="Ad, telefon veya ID ara..." oninput="bagislarAramaGecikme()">
+              <select class="filtre-select" id="bagislar-durum-filtre" onchange="bagislarYukle(1)">
+                <option value="">Tüm Durumlar</option>
+                <option value="bekliyor">Bekliyor</option>
+                <option value="kesildi">Kesildi</option>
+              </select>
+              <select class="filtre-select" id="bagislar-limit" onchange="bagislarYukle(1)">
+                <option value="50">50 satır</option>
+                <option value="100">100 satır</option>
+                <option value="500">500 satır</option>
+                <option value="1000">1.000 satır</option>
+                <option value="10000">10.000 satır</option>
+                <option value="100000">Tümü</option>
+              </select>
+            </div>
+            <div class="tablo-wrapper">
+              <table>
+                <thead><tr><th>ID</th><th>Excel ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Kimin Adına</th><th>Referans</th><th>Durum</th><th>Bağışçı</th><th>Tarih</th></tr></thead>
+                <tbody id="bagislar-tbody"><tr><td colspan="9" class="empty">Yükleniyor...</td></tr></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="bagislar-pagination"></div>
+          </div>
+        </div>
+
+        <!-- BAĞIŞÇILAR -->
+        <div id="sayfa-bagiscilar" class="sayfa">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Bağışçı Listesi</span>
+              <span id="bagiscilar-toplam" style="font-size:0.82rem;color:#9ca3af"></span>
+            </div>
+            <div class="tablo-araclari">
+              <input class="arama-input" id="bagiscilar-arama" placeholder="Ad, telefon veya kod ara..." oninput="bagiscilarAramaGecikme()">
+              <select class="filtre-select" id="bagiscilar-limit" onchange="bagiscilarYukle(1)">
+                <option value="50">50 satır</option>
+                <option value="100">100 satır</option>
+                <option value="500">500 satır</option>
+                <option value="1000">1.000 satır</option>
+                <option value="10000">10.000 satır</option>
+                <option value="100000">Tümü</option>
+              </select>
+            </div>
+            <div class="tablo-wrapper">
+              <table>
+                <thead><tr><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke Kodu</th><th>Uniq Kod</th><th>Bağış Sayısı</th><th>Kayıt Tarihi</th></tr></thead>
+                <tbody id="bagiscilar-tbody"><tr><td colspan="7" class="empty">Yükleniyor...</td></tr></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="bagiscilar-pagination"></div>
+          </div>
+        </div>
+
+        <!-- WORDPRESS WIDGET -->
+        <div id="sayfa-widget" class="sayfa">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Widget Yapılandırması</span></div>
+            <div class="alert alert-info" style="font-size:0.85rem">
+              <strong>💡 İpucu:</strong> Aşağıdaki alanları doldurun, ardından <strong>İndir</strong> veya <strong>Kopyala</strong> ile widget HTML'ini alın ve WordPress'te <em>"Özel HTML"</em> bloğu olarak yapıştırın.
+            </div>
+            <div class="form-group">
+              <label>API URL (Coolify Servis Adresi)</label>
+              <input type="text" class="form-control" id="widget-api-url" placeholder="https://api-adresiniz.coolify.io" oninput="widgetOnizleme()">
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Sonunda <code>/</code> olmamalı. Örn: https://bagis.alandiniz.com</small>
+            </div>
+            <div class="form-group">
+              <label>Secret Key</label>
+              <input type="text" class="form-control mono" id="widget-secret-key" placeholder=".env içindeki SECRET_KEY ile aynı olmalı" oninput="widgetOnizleme()">
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="widgetIndir()">⬇️ HTML Dosyası Olarak İndir</button>
+              <button class="btn btn-outline" onclick="widgetKopyala()">📋 Panoya Kopyala</button>
+              <button class="btn btn-outline" onclick="widgetOnizlemeAc()">🔍 Tarayıcıda Önizle</button>
+            </div>
+            <div id="widget-mesaj" style="margin-top:12px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">URL Parametresi ile Otomatik Sorgulama</span>
+            </div>
+            <p style="font-size:0.88rem;color:#374151;line-height:1.7;margin-bottom:12px">
+              Widget, URL'den uniq kodu otomatik okuyabilir. SMS/e-posta kampanyalarında bağışçıya doğrudan sonuç sayfası gönderebilirsiniz:
+            </p>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;font-family:monospace;font-size:0.82rem;line-height:1.9;color:#374151">
+              <div>• <span style="color:#9ca3af">https://siteniz.com/sorgulama</span><strong style="color:#2563eb">?kod=AB12CD34</strong></div>
+              <div>• <span style="color:#9ca3af">https://siteniz.com/sorgulama</span><strong style="color:#2563eb">?uniq_kod=AB12CD34</strong></div>
+              <div>• <span style="color:#9ca3af">https://siteniz.com/sorgulama</span><strong style="color:#2563eb">#AB12CD34</strong></div>
+              <div>• UTM ile: <span style="color:#9ca3af">?kod=AB12CD34</span><strong style="color:#16a34a">&utm_source=sms</strong></div>
+            </div>
+            <div class="alert alert-info" style="margin-top:14px;font-size:0.85rem">
+              <strong>SMS şablonu önerisi:</strong> <code style="background:#fff;padding:2px 6px;border-radius:4px">Merhaba {BAGISCI_ADI_SOYADI}, bağış durumunuzu sorgulamak için: https://siteniz.com/sorgulama?kod={UNIQ_KOD}</code>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">HTML Önizleme</span></div>
+            <pre id="widget-html-onizleme" style="background:#1e293b;color:#e2e8f0;padding:18px;border-radius:8px;font-size:0.78rem;line-height:1.5;max-height:400px;overflow:auto;white-space:pre-wrap;word-break:break-all">API URL ve Secret Key girince önizleme burada gösterilir...</pre>
+          </div>
+        </div>
+
+        <!-- SMS GÖNDER -->
+        <div id="sayfa-sms" class="sayfa">
+          <div class="sms-grid">
+
+            <!-- SOL: TEMPLATE + GÖNDER -->
+            <div>
+              <div class="card">
+                <div class="card-header"><span class="card-title">Mesaj Şablonu</span></div>
+                <div class="form-group">
+                  <label>Şablon</label>
+                  <textarea class="form-control" id="sms-template" rows="5" placeholder="Merhaba {BAGISCI_ADI_SOYADI}, bağışınız alınmıştır. Sorgu kodunuz: {UNIQ_KOD}" oninput="onizlemeGuncelle()"></textarea>
+                  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                    <button class="btn-placeholder" onclick="placeholder('{BAGISCI_ADI_SOYADI}')">+ Bağışçı Adı Soyadı</button>
+                    <button class="btn-placeholder" onclick="placeholder('{UNIQ_KOD}')">+ Uniq Kod</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Önizleme</label>
+                  <div class="onizleme-kutu" id="sms-onizleme">Şablonu doldurun...</div>
+                  <div class="karakter-say" id="sms-karakter">0 karakter</div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Bağışçı Seçimi</span>
+                  <span id="sms-secim-bilgi" style="font-size:0.82rem;color:#9ca3af"></span>
+                </div>
+                <div class="secim-bar">
+                  <input type="checkbox" id="hepsini-sec" onchange="hepsiniSec(this.checked)" title="Tümünü seç">
+                  <label for="hepsini-sec" style="cursor:pointer;font-size:0.85rem">Tüm sayfayı seç</label>
+                  <span style="color:#d1d5db">|</span>
+                  <strong id="secilen-sayi">0</strong> <span style="color:#6b7280">bağışçı seçildi</span>
+                  <span style="flex:1"></span>
+                  <input class="arama-input" id="sms-bagisci-arama" placeholder="Ara..." oninput="smsBagisciAramaGecikme()" style="width:160px">
+                  <select class="filtre-select" id="sms-bagisci-limit" onchange="smsBagisciYukle(1)">
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                    <option value="1000">1.000</option>
+                    <option value="10000">10.000</option>
+                    <option value="100000">Tümü</option>
+                  </select>
+                </div>
+                <div class="tablo-wrapper">
+                  <table>
+                    <thead><tr><th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th><th>Bağış</th></tr></thead>
+                    <tbody id="sms-bagisci-tbody"><tr><td colspan="6" class="empty">Yükleniyor...</td></tr></tbody>
+                  </table>
+                </div>
+                <div class="pagination" id="sms-bagisci-pagination"></div>
+              </div>
+
+              <!-- GÖNDER -->
+              <div class="card">
+                <div class="card-header"><span class="card-title">Gönderim</span></div>
+                <div id="sms-gonder-hata" class="alert alert-error" style="display:none"></div>
+                <div id="sms-gonder-basari" class="alert alert-success" style="display:none"></div>
+                <div class="form-group">
+                  <label>Mesajlar arası bekleme (ms)</label>
+                  <div class="aralik-row">
+                    <input type="number" class="form-control" id="sms-aralik" value="500" min="0" max="60000" style="width:120px">
+                    <span style="font-size:0.82rem;color:#9ca3af">Netgsm spam koruması için en az 500ms önerilir</span>
+                  </div>
+                </div>
+                <button class="btn btn-success" id="sms-gonder-btn" onclick="smsSend()" style="width:100%">
+                  💬 SMS Gönder
+                </button>
+                <div class="progress-kutu" id="progress-kutu">
+                  <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:#6b7280">
+                    <span>Gönderiliyor...</span>
+                    <span id="progress-metin">0 / 0</span>
+                  </div>
+                  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+                  <div class="gonderim-log" id="gonderim-log"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SAĞ: AYARLAR ÖZETİ -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Netgsm Bağlantısı</span>
+                  <button class="btn btn-outline btn-sm" onclick="ayarlarAc()">Düzenle</button>
+                </div>
+                <div id="sms-config-ozet">
+                  <div class="empty" style="padding:20px">Yükleniyor...</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /layout -->
+</div><!-- /panel -->
+
+<script>
+  // --- STATE ---
+  let seciliDosya = null;
+  let bagislarSayfa = 1, bagiscilarSayfa = 1, smsBagisciSayfa = 1;
+  let bagislarAramaTimer, bagiscilarAramaTimer, smsAramaTimer;
+  let secilenBagisciIds = new Set();
+
+  const SAYFA_META = {
+    excel:      { title: 'Excel Yükle',   sub: 'Excel dosyası ile toplu bağış yükle' },
+    bagislar:   { title: 'Bağışlar',      sub: 'Tüm bağış kayıtları' },
+    bagiscilar: { title: 'Bağışçılar',    sub: 'Bağışçı listesi ve uniq kodlar' },
+    sms:        { title: 'SMS Gönder',    sub: 'Bağışçılara toplu SMS gönder' },
+    widget:     { title: 'WordPress Widget', sub: 'Site içine gömülecek sorgulama widget\'ı' },
+  };
+
+  function sayfaGec(id, navEl) {
+    document.querySelectorAll('.sayfa').forEach(s => s.classList.remove('aktif'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('sayfa-' + id).classList.add('aktif');
+    if (navEl) navEl.classList.add('active');
+    const meta = SAYFA_META[id];
+    document.getElementById('topbar-title').textContent = meta.title;
+    document.getElementById('topbar-sub').textContent = meta.sub;
+    if (id === 'bagislar') bagislarYukle(1);
+    if (id === 'bagiscilar') bagiscilarYukle(1);
+    if (id === 'sms') { smsBagisciYukle(1); smsConfigOzet(); }
+    if (id === 'widget') widgetSayfaInit();
+  }
+
+  // --- DRAG DROP ---
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) setDosya(f); });
+  function dosyaSec(input) { if (input.files[0]) setDosya(input.files[0]); }
+  function setDosya(f) { seciliDosya = f; document.getElementById('dosya-adi').textContent = '✓ ' + f.name; document.getElementById('yukle-btn').disabled = false; }
+
+  // --- AUTH ---
+  async function girisYap() {
+    const btn = document.getElementById('giris-btn');
+    const hata = document.getElementById('login-hata');
+    hata.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Giriş yapılıyor...';
+    try {
+      const res = await fetch('/admin/api/giris', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ kullanici_adi: document.getElementById('kullanici-adi').value, sifre: document.getElementById('sifre').value }) });
+      const data = await res.json();
+      if (data.basarili) { document.getElementById('login-ekrani').style.display = 'none'; document.getElementById('panel-ekrani').style.display = 'block'; }
+      else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Sunucuya bağlanılamadı.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Giriş Yap'; }
+  }
+  async function cikisYap() { await fetch('/admin/api/cikis', { method: 'POST', credentials: 'include' }); location.reload(); }
+
+  // --- EXCEL ---
+  async function excelYukle() {
+    if (!seciliDosya) return;
+    const btn = document.getElementById('yukle-btn');
+    document.getElementById('yukle-hata').style.display = 'none';
+    document.getElementById('yukle-basari').style.display = 'none';
+    document.getElementById('yukle-sonuc').style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> İşleniyor...';
+    const fd = new FormData();
+    fd.append('excel', seciliDosya);
+    fd.append('varsayilan_durum', document.getElementById('varsayilan-durum').value);
+    try {
+      const res = await fetch('/admin/api/yukle', { method: 'POST', credentials: 'include', body: fd });
+      const data = await res.json();
+      if (data.basarili) { document.getElementById('yukle-basari').textContent = 'Excel başarıyla işlendi.'; document.getElementById('yukle-basari').style.display = 'block'; ozetGoster(data.ozet); }
+      else { document.getElementById('yukle-hata').textContent = data.mesaj; document.getElementById('yukle-hata').style.display = 'block'; }
+    } catch { document.getElementById('yukle-hata').textContent = 'Yükleme sırasında bağlantı hatası.'; document.getElementById('yukle-hata').style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Yükle'; }
+  }
+
+  function ozetGoster(ozet) {
+    const items = [
+      { sayi: ozet.toplamSatir, etiket: 'Toplam Satır' },
+      { sayi: ozet.olusturulanBagisci, etiket: 'Yeni Bağışçı' },
+      { sayi: ozet.bulunanBagisci, etiket: 'Mevcut Bağışçı' },
+      { sayi: ozet.olusturulanBagis, etiket: 'Yeni Bağış' },
+      { sayi: ozet.guncellenenBagis, etiket: 'Güncellenen' },
+      { sayi: ozet.hataSayisi, etiket: 'Hata', kirmizi: true },
+    ];
+    document.getElementById('ozet-grid').innerHTML = items.map(i => `<div class="ozet-item"><div class="sayi" style="${i.kirmizi && i.sayi > 0 ? 'color:#dc2626' : ''}">${i.sayi}</div><div class="etiket">${i.etiket}</div></div>`).join('');
+    const hatalarCard = document.getElementById('hatalar-card');
+    if (ozet.hataliSatirlar && ozet.hataliSatirlar.length > 0) {
+      hatalarCard.innerHTML = `<div class="card"><div class="card-header"><span class="card-title" style="color:#dc2626">Hatalı Satırlar (${ozet.hataliSatirlar.length})</span></div><div class="tablo-wrapper"><table><thead><tr><th>Satır</th><th>ID</th><th>Hata</th></tr></thead><tbody>${ozet.hataliSatirlar.map(h => `<tr><td>${h.satirNo}</td><td>${h.ID}</td><td>${h.hata}</td></tr>`).join('')}</tbody></table></div></div>`;
+    } else { hatalarCard.innerHTML = ''; }
+    document.getElementById('yukle-sonuc').style.display = 'block';
+  }
+
+  // --- BAĞIŞLAR ---
+  function bagislarAramaGecikme() { clearTimeout(bagislarAramaTimer); bagislarAramaTimer = setTimeout(() => bagislarYukle(1), 350); }
+  async function bagislarYukle(sayfa) {
+    bagislarSayfa = sayfa;
+    const arama = document.getElementById('bagislar-arama').value;
+    const durum = document.getElementById('bagislar-durum-filtre').value;
+    const limit = document.getElementById('bagislar-limit').value;
+    const tbody = document.getElementById('bagislar-tbody');
+    tbody.innerHTML = `<tr><td colspan="9" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    try {
+      const params = new URLSearchParams({ sayfa, limit });
+      if (arama) params.set('arama', arama);
+      if (durum) params.set('durum', durum);
+      const res = await fetch('/admin/api/bagislar?' + params, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Yüklenemedi.</td></tr>`; return; }
+      document.getElementById('bagislar-toplam').textContent = `Toplam: ${data.toplam} kayıt`;
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagislar', data, sayfa); return; }
+      tbody.innerHTML = data.veri.map(b => `<tr>
+        <td>${b.id}</td><td class="mono">${b.excel_id}</td><td>${esc(b.ad_soyad)}</td>
+        <td class="mono">${esc(b.cep_telefonu)}${!b.cep_no_ulke_kodu_var_mi ? ' <span class="badge badge-uyari">!</span>' : ''}</td>
+        <td>${esc(b.kimin_adina) || '<span style="color:#d1d5db">—</span>'}</td>
+        <td>${esc(b.ikinci_ref) || '<span style="color:#d1d5db">—</span>'}</td>
+        <td><span class="badge badge-${b.durum}">${b.durum === 'kesildi' ? 'Kesildi' : 'Bekliyor'}</span></td>
+        <td>${b.bagisci_adi ? esc(b.bagisci_adi) : '<span style="color:#d1d5db">—</span>'}</td>
+        <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
+      </tr>`).join('');
+      renderPagination('bagislar', data, sayfa);
+    } catch { tbody.innerHTML = `<tr><td colspan="9" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  // --- BAĞIŞÇILAR ---
+  function bagiscilarAramaGecikme() { clearTimeout(bagiscilarAramaTimer); bagiscilarAramaTimer = setTimeout(() => bagiscilarYukle(1), 350); }
+  async function bagiscilarYukle(sayfa) {
+    bagiscilarSayfa = sayfa;
+    const arama = document.getElementById('bagiscilar-arama').value;
+    const limit = document.getElementById('bagiscilar-limit').value;
+    const tbody = document.getElementById('bagiscilar-tbody');
+    tbody.innerHTML = `<tr><td colspan="7" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    try {
+      const params = new URLSearchParams({ sayfa, limit });
+      if (arama) params.set('arama', arama);
+      const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Yüklenemedi.</td></tr>`; return; }
+      document.getElementById('bagiscilar-toplam').textContent = `Toplam: ${data.toplam} bağışçı`;
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagiscilar', data, sayfa); return; }
+      tbody.innerHTML = data.veri.map(b => `<tr>
+        <td>${b.id}</td><td>${esc(b.ad_soyad)}</td>
+        <td class="mono">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
+        <td>${b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>'}</td>
+        <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:6px;letter-spacing:2px">${b.uniq_kod}</span></td>
+        <td style="text-align:center">${b.bagis_sayisi}</td>
+        <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
+      </tr>`).join('');
+      renderPagination('bagiscilar', data, sayfa);
+    } catch { tbody.innerHTML = `<tr><td colspan="7" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  // --- SMS BAĞIŞÇI LİSTESİ ---
+  function smsBagisciAramaGecikme() { clearTimeout(smsAramaTimer); smsAramaTimer = setTimeout(() => smsBagisciYukle(1), 350); }
+  async function smsBagisciYukle(sayfa) {
+    smsBagisciSayfa = sayfa;
+    const arama = document.getElementById('sms-bagisci-arama').value;
+    const limit = document.getElementById('sms-bagisci-limit').value;
+    const tbody = document.getElementById('sms-bagisci-tbody');
+    tbody.innerHTML = `<tr><td colspan="6" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    try {
+      const params = new URLSearchParams({ sayfa, limit });
+      if (arama) params.set('arama', arama);
+      const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Yüklenemedi.</td></tr>`; return; }
+      document.getElementById('sms-secim-bilgi').textContent = `Toplam: ${data.toplam} bağışçı`;
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('sms-bagisci', data, sayfa); return; }
+
+      const tumIds = data.veri.map(b => b.id);
+      const hepsiSecili = tumIds.every(id => secilenBagisciIds.has(id));
+      document.getElementById('hepsini-sec').checked = hepsiSecili && tumIds.length > 0;
+
+      tbody.innerHTML = data.veri.map(b => `<tr>
+        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${secilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="tekSecim(${b.id}, this.checked)"></td>
+        <td>${b.id}</td>
+        <td>${esc(b.ad_soyad)}</td>
+        <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
+        <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
+        <td style="text-align:center">${b.bagis_sayisi}</td>
+      </tr>`).join('');
+      renderPagination('sms-bagisci', data, sayfa);
+      secilenSayiGuncelle();
+    } catch { tbody.innerHTML = `<tr><td colspan="6" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  function tekSecim(id, secili) {
+    if (secili) secilenBagisciIds.add(id);
+    else secilenBagisciIds.delete(id);
+    secilenSayiGuncelle();
+    const tumCb = document.querySelectorAll('#sms-bagisci-tbody input[type="checkbox"]');
+    document.getElementById('hepsini-sec').checked = tumCb.length > 0 && [...tumCb].every(cb => cb.checked);
+  }
+
+  function hepsiniSec(secili) {
+    document.querySelectorAll('#sms-bagisci-tbody input[type="checkbox"]').forEach(cb => {
+      const id = parseInt(cb.dataset.id);
+      cb.checked = secili;
+      if (secili) secilenBagisciIds.add(id);
+      else secilenBagisciIds.delete(id);
+    });
+    secilenSayiGuncelle();
+  }
+
+  function secilenSayiGuncelle() {
+    document.getElementById('secilen-sayi').textContent = secilenBagisciIds.size;
+  }
+
+  // --- SMS TEMPLATE ÖNİZLEME ---
+  function placeholder(text) {
+    const ta = document.getElementById('sms-template');
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+    ta.selectionStart = ta.selectionEnd = start + text.length;
+    ta.focus();
+    onizlemeGuncelle();
+  }
+
+  function onizlemeGuncelle() {
+    const template = document.getElementById('sms-template').value;
+    const ornek = template
+      .replace(/\{BAGISCI_ADI_SOYADI\}/g, 'Ahmet Yılmaz')
+      .replace(/\{UNIQ_KOD\}/g, 'AB12CD34');
+    document.getElementById('sms-onizleme').textContent = ornek || 'Şablonu doldurun...';
+    document.getElementById('sms-karakter').textContent = ornek.length + ' karakter';
+  }
+
+  // --- SMS CONFIG ÖZET ---
+  async function smsConfigOzet() {
+    try {
+      const res = await fetch('/admin/api/sms/config', { credentials: 'include' });
+      const data = await res.json();
+      const el = document.getElementById('sms-config-ozet');
+      if (!data.basarili) { el.innerHTML = '<div class="empty">Yapılandırma yüklenemedi.</div>'; return; }
+      const c = data.config;
+      const tamam = c.username && c.msgheader;
+      el.innerHTML = `
+        <div style="font-size:0.85rem;line-height:2">
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Kullanıcı</span><span>${c.username || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Başlık</span><span>${c.msgheader || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Proje Adı</span><span>${c.appname || '—'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">API Şifresi</span><span>${c.password ? '••••••••' : '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+        </div>
+        <div style="margin-top:12px">
+          <span class="badge" style="background:${tamam ? '#dcfce7' : '#fef2f2'};color:${tamam ? '#166534' : '#dc2626'}">${tamam ? '✓ Yapılandırıldı' : '⚠ Eksik ayar'}</span>
+        </div>`;
+    } catch {}
+  }
+
+  // --- AYARLAR MODAL ---
+  async function ayarlarAc() {
+    document.getElementById('ayarlar-hata').style.display = 'none';
+    document.getElementById('ayarlar-basari').style.display = 'none';
+    try {
+      const res = await fetch('/admin/api/sms/config', { credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('cfg-username').value = data.config.username || '';
+        document.getElementById('cfg-password').value = '';
+        document.getElementById('cfg-msgheader').value = data.config.msgheader || '';
+        document.getElementById('cfg-appname').value = data.config.appname || '';
+      }
+    } catch {}
+    document.getElementById('ayarlar-modal').classList.add('acik');
+  }
+
+  function modalKapat() {
+    document.getElementById('ayarlar-modal').classList.remove('acik');
+  }
+
+  async function ayarlariKaydet() {
+    const btn = document.getElementById('ayarlar-kaydet-btn');
+    const hata = document.getElementById('ayarlar-hata');
+    const basari = document.getElementById('ayarlar-basari');
+    hata.style.display = 'none'; basari.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Kaydediliyor...';
+    try {
+      const res = await fetch('/admin/api/sms/config', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('cfg-username').value,
+          password: document.getElementById('cfg-password').value,
+          msgheader: document.getElementById('cfg-msgheader').value,
+          appname: document.getElementById('cfg-appname').value,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) { basari.textContent = 'Ayarlar kaydedildi.'; basari.style.display = 'block'; smsConfigOzet(); }
+      else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Sunucu hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Kaydet'; }
+  }
+
+  // Modal dışına tıklayınca kapat
+  document.getElementById('ayarlar-modal').addEventListener('click', function(e) {
+    if (e.target === this) modalKapat();
+  });
+
+  // --- SMS GÖNDER ---
+  async function smsSend() {
+    const template = document.getElementById('sms-template').value.trim();
+    const ids = [...secilenBagisciIds];
+    const hataEl = document.getElementById('sms-gonder-hata');
+    const basariEl = document.getElementById('sms-gonder-basari');
+    hataEl.style.display = 'none'; basariEl.style.display = 'none';
+
+    if (!template) { hataEl.textContent = 'Mesaj şablonu boş olamaz.'; hataEl.style.display = 'block'; return; }
+    if (ids.length === 0) { hataEl.textContent = 'En az bir bağışçı seçin.'; hataEl.style.display = 'block'; return; }
+
+    if (!confirm(`${ids.length} bağışçıya SMS gönderilecek. Onaylıyor musunuz?`)) return;
+
+    const btn = document.getElementById('sms-gonder-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Gönderiliyor...';
+    document.getElementById('progress-kutu').style.display = 'block';
+    document.getElementById('gonderim-log').innerHTML = '';
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-metin').textContent = `0 / ${ids.length}`;
+
+    try {
+      const res = await fetch('/admin/api/sms/gonder', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bagisci_ids: ids, template, aralik_ms: parseInt(document.getElementById('sms-aralik').value) || 500 }),
+      });
+      const data = await res.json();
+
+      if (data.basarili) {
+        const s = data.sonuc;
+        const toplam = s.basarili + s.basarisiz + s.atlanan;
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-metin').textContent = `${toplam} / ${toplam}`;
+        basariEl.innerHTML = `✓ Gönderim tamamlandı — <strong>${s.basarili}</strong> başarılı, <strong>${s.basarisiz}</strong> hata, <strong>${s.atlanan}</strong> atlandı`;
+        basariEl.style.display = 'block';
+        if (s.detay) {
+          document.getElementById('gonderim-log').innerHTML = s.detay.map(d => {
+            const cls = d.durum === 'gönderildi' ? 'log-ok' : d.durum === 'atlandı' ? 'log-skip' : 'log-err';
+            const ikon = d.durum === 'gönderildi' ? '✓' : d.durum === 'atlandı' ? '—' : '✗';
+            return `<div class="log-item"><span class="${cls}">${ikon}</span><span>${esc(d.ad)}</span>${d.sebep ? `<span style="color:#9ca3af">${esc(d.sebep)}</span>` : ''}</div>`;
+          }).join('');
+        }
+      } else {
+        hataEl.textContent = data.mesaj;
+        hataEl.style.display = 'block';
+      }
+    } catch { hataEl.textContent = 'Bağlantı hatası.'; hataEl.style.display = 'block'; }
+    finally { btn.disabled = false; btn.innerHTML = '💬 SMS Gönder'; }
+  }
+
+  // --- WIDGET ---
+  let widgetSablon = null;
+
+  async function widgetSayfaInit() {
+    // Varsayılan API URL = mevcut origin
+    const apiInput = document.getElementById('widget-api-url');
+    if (!apiInput.value) apiInput.value = window.location.origin;
+
+    // Şablonu sunucudan çek
+    if (!widgetSablon) {
+      try {
+        const res = await fetch('/admin/api/widget/sablon', { credentials: 'include' });
+        const data = await res.json();
+        if (data.basarili) widgetSablon = data.sablon;
+      } catch {}
+    }
+    widgetOnizleme();
+  }
+
+  function widgetHtmlOlustur() {
+    if (!widgetSablon) return '';
+    const apiUrl = (document.getElementById('widget-api-url').value || '').replace(/\/$/, '');
+    const secretKey = document.getElementById('widget-secret-key').value || '';
+    return widgetSablon
+      .replace(/\{\{API_URL\}\}/g, apiUrl)
+      .replace(/\{\{SECRET_KEY\}\}/g, secretKey);
+  }
+
+  function widgetOnizleme() {
+    const html = widgetHtmlOlustur();
+    document.getElementById('widget-html-onizleme').textContent = html || 'Şablon yükleniyor...';
+  }
+
+  function widgetMesaj(metin, tip) {
+    const el = document.getElementById('widget-mesaj');
+    el.innerHTML = `<div class="alert alert-${tip}">${metin}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 3500);
+  }
+
+  function widgetKontrolEt() {
+    const apiUrl = document.getElementById('widget-api-url').value.trim();
+    const secret = document.getElementById('widget-secret-key').value.trim();
+    if (!apiUrl || !secret) {
+      widgetMesaj('API URL ve Secret Key alanlarını doldurun.', 'error');
+      return null;
+    }
+    return { apiUrl, secret };
+  }
+
+  function widgetIndir() {
+    const veri = widgetKontrolEt();
+    if (!veri) return;
+    const html = widgetHtmlOlustur();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bagis-sorgulama-widget.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    widgetMesaj('✓ Widget HTML dosyası indirildi.', 'success');
+  }
+
+  async function widgetKopyala() {
+    const veri = widgetKontrolEt();
+    if (!veri) return;
+    try {
+      await navigator.clipboard.writeText(widgetHtmlOlustur());
+      widgetMesaj('✓ Widget HTML panoya kopyalandı.', 'success');
+    } catch {
+      widgetMesaj('Kopyalama başarısız oldu. Tarayıcı izni gerekebilir.', 'error');
+    }
+  }
+
+  function widgetOnizlemeAc() {
+    const veri = widgetKontrolEt();
+    if (!veri) return;
+    const html = widgetHtmlOlustur();
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+  }
+
+  // --- YARDIMCILAR ---
+  function renderPagination(tip, data, sayfa) {
+    const toplamSayfa = Math.ceil(data.toplam / data.limit);
+    const el = document.getElementById(tip + '-pagination');
+    if (!el || toplamSayfa <= 1) { if (el) el.innerHTML = ''; return; }
+    const fnAdi = tip === 'sms-bagisci' ? 'smsBagisciYukle' : tip + 'Yukle';
+    el.innerHTML = `<button onclick="${fnAdi}(${sayfa - 1})" ${sayfa <= 1 ? 'disabled' : ''}>‹ Önceki</button><span>${sayfa} / ${toplamSayfa}</span><button onclick="${fnAdi}(${sayfa + 1})" ${sayfa >= toplamSayfa ? 'disabled' : ''}>Sonraki ›</button>`;
+  }
+
+  function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function tarihFormat(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('tr-TR') + ' ' + d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
+
+  // --- BAŞLANGIÇ ---
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('login-ekrani').style.display !== 'none') girisYap(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') modalKapat(); });
+
+  (async () => {
+    try {
+      const res = await fetch('/admin/api/durum', { credentials: 'include' });
+      const data = await res.json();
+      if (data.girisYapildi) {
+        document.getElementById('login-ekrani').style.display = 'none';
+        document.getElementById('panel-ekrani').style.display = 'block';
+      }
+    } catch {}
+  })();
+</script>
+</body>
+</html>

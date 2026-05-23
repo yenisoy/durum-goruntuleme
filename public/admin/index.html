@@ -228,7 +228,13 @@
           <span class="nav-icon">💬</span> SMS Gönder
         </div>
         <div class="nav-item" data-sayfa="widget" onclick="sayfaGec('widget', this)">
-          <span class="nav-icon">🌐</span> WordPress Widget
+          <span class="nav-icon">🌐</span> Endpoint / Widget
+        </div>
+        <div class="nav-item admin-only" data-sayfa="kullanicilar" onclick="sayfaGec('kullanicilar', this)" style="display:none">
+          <span class="nav-icon">👤</span> Kullanıcılar
+        </div>
+        <div class="nav-item" data-sayfa="profil" onclick="sayfaGec('profil', this)">
+          <span class="nav-icon">⚙️</span> Profilim
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -342,21 +348,25 @@
           </div>
         </div>
 
-        <!-- WORDPRESS WIDGET -->
+        <!-- ENDPOINT / WIDGET -->
         <div id="sayfa-widget" class="sayfa">
           <div class="card">
-            <div class="card-header"><span class="card-title">Widget Yapılandırması</span></div>
+            <div class="card-header"><span class="card-title">Endpoint Bilgileri</span></div>
             <div class="alert alert-info" style="font-size:0.85rem">
-              <strong>💡 İpucu:</strong> Aşağıdaki alanları doldurun, ardından <strong>İndir</strong> veya <strong>Kopyala</strong> ile widget HTML'ini alın ve WordPress'te <em>"Özel HTML"</em> bloğu olarak yapıştırın.
+              <strong>💡 İpucu:</strong> Bu sayfa size özel API erişim bilgilerinizi gösterir. Aşağıdaki widget HTML'ini WordPress'e yapıştırın veya kendi tasarımınızla bu endpoint'i kullanın.
             </div>
             <div class="form-group">
-              <label>API URL (Coolify Servis Adresi)</label>
-              <input type="text" class="form-control" id="widget-api-url" placeholder="https://api-adresiniz.coolify.io" oninput="widgetOnizleme()">
-              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Sonunda <code>/</code> olmamalı. Örn: https://bagis.alandiniz.com</small>
+              <label>API URL</label>
+              <input type="text" class="form-control" id="widget-api-url" placeholder="https://api-adresiniz.com" oninput="widgetOnizleme()">
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Otomatik mevcut origin doldurulur. Sonunda <code>/</code> olmamalı.</small>
             </div>
             <div class="form-group">
-              <label>Secret Key</label>
-              <input type="text" class="form-control mono" id="widget-secret-key" placeholder=".env içindeki SECRET_KEY ile aynı olmalı" oninput="widgetOnizleme()">
+              <label>Sizin Secret Key'iniz</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" class="form-control mono" id="widget-secret-key" readonly style="background:#f9fafb">
+                <button class="btn btn-outline btn-sm" onclick="secretKeyKopyala()" title="Panoya kopyala">📋</button>
+              </div>
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Her kullanıcının kendine özel key'i vardır. Sadece sizin bağışçılarınıza erişim sağlar.</small>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <button class="btn btn-primary" onclick="widgetIndir()">⬇️ HTML Dosyası Olarak İndir</button>
@@ -364,6 +374,14 @@
               <button class="btn btn-outline" onclick="widgetOnizlemeAc()">🔍 Tarayıcıda Önizle</button>
             </div>
             <div id="widget-mesaj" style="margin-top:12px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">API Endpoint (Kendi Tasarımınız İçin)</span></div>
+            <p style="font-size:0.88rem;color:#374151;line-height:1.6;margin-bottom:12px">
+              Kendi HTML/JS tasarımınızı kullanmak isterseniz, aşağıdaki POST isteğini atın:
+            </p>
+            <pre id="endpoint-ornegi" style="background:#1e293b;color:#e2e8f0;padding:18px;border-radius:8px;font-size:0.82rem;line-height:1.5;overflow:auto;white-space:pre-wrap"></pre>
           </div>
 
           <div class="card">
@@ -387,6 +405,92 @@
           <div class="card">
             <div class="card-header"><span class="card-title">HTML Önizleme</span></div>
             <pre id="widget-html-onizleme" style="background:#1e293b;color:#e2e8f0;padding:18px;border-radius:8px;font-size:0.78rem;line-height:1.5;max-height:400px;overflow:auto;white-space:pre-wrap;word-break:break-all">API URL ve Secret Key girince önizleme burada gösterilir...</pre>
+          </div>
+        </div>
+
+        <!-- KULLANICILAR (admin only) -->
+        <div id="sayfa-kullanicilar" class="sayfa">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Kullanıcı Yönetimi</span>
+              <button class="btn btn-primary btn-sm" onclick="yeniKullaniciModalAc()">+ Yeni Kullanıcı</button>
+            </div>
+            <div id="kullanici-hata" class="alert alert-error" style="display:none"></div>
+            <div id="kullanici-basari" class="alert alert-success" style="display:none"></div>
+            <div class="tablo-wrapper">
+              <table>
+                <thead><tr><th>ID</th><th>Kullanıcı Adı</th><th>Rol</th><th>Secret Key</th><th>Bağışçı</th><th>Bağış</th><th>Kayıt</th><th></th></tr></thead>
+                <tbody id="kullanicilar-tbody"><tr><td colspan="8" class="empty">Yükleniyor...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFİL -->
+        <div id="sayfa-profil" class="sayfa">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Hesap Bilgilerim</span></div>
+            <div class="form-group">
+              <label>Kullanıcı Adı</label>
+              <input type="text" class="form-control" id="profil-kullanici-adi" readonly style="background:#f9fafb">
+            </div>
+            <div class="form-group">
+              <label>Rolüm</label>
+              <input type="text" class="form-control" id="profil-rol" readonly style="background:#f9fafb">
+            </div>
+            <div class="form-group">
+              <label>Secret Key</label>
+              <div style="display:flex;gap:8px">
+                <input type="text" class="form-control mono" id="profil-secret-key" readonly style="background:#f9fafb">
+                <button class="btn btn-outline btn-sm" onclick="profilSecretKopyala()">📋</button>
+              </div>
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Secret key sadece admin tarafından yenilenebilir.</small>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Şifre Değiştir</span></div>
+            <div id="sifre-hata" class="alert alert-error" style="display:none"></div>
+            <div id="sifre-basari" class="alert alert-success" style="display:none"></div>
+            <div class="form-group">
+              <label>Mevcut Şifre</label>
+              <input type="password" class="form-control" id="sifre-mevcut">
+            </div>
+            <div class="form-group">
+              <label>Yeni Şifre (en az 6 karakter)</label>
+              <input type="password" class="form-control" id="sifre-yeni">
+            </div>
+            <button class="btn btn-primary" id="sifre-degistir-btn" onclick="sifreDegistir()">Şifreyi Güncelle</button>
+          </div>
+        </div>
+
+        <!-- YENİ KULLANICI MODAL -->
+        <div class="modal-overlay" id="yeni-kullanici-modal">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="modal-title">+ Yeni Kullanıcı</span>
+              <button class="modal-kapat" onclick="document.getElementById('yeni-kullanici-modal').classList.remove('acik')">×</button>
+            </div>
+            <div id="yeni-kullanici-hata" class="alert alert-error" style="display:none"></div>
+            <div class="form-group">
+              <label>Kullanıcı Adı</label>
+              <input type="text" class="form-control" id="yeni-kullanici-adi" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Şifre (en az 6 karakter)</label>
+              <input type="password" class="form-control" id="yeni-kullanici-sifre" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label>Rol</label>
+              <select class="form-control" id="yeni-kullanici-rol">
+                <option value="user">Normal Kullanıcı</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" onclick="document.getElementById('yeni-kullanici-modal').classList.remove('acik')">İptal</button>
+              <button class="btn btn-primary" id="yeni-kullanici-kaydet-btn" onclick="yeniKullaniciKaydet()">Oluştur</button>
+            </div>
           </div>
         </div>
 
@@ -502,7 +606,9 @@
     bagislar:   { title: 'Bağışlar',      sub: 'Tüm bağış kayıtları' },
     bagiscilar: { title: 'Bağışçılar',    sub: 'Bağışçı listesi ve uniq kodlar' },
     sms:        { title: 'SMS Gönder',    sub: 'Bağışçılara toplu SMS gönder' },
-    widget:     { title: 'WordPress Widget', sub: 'Site içine gömülecek sorgulama widget\'ı' },
+    widget:     { title: 'Endpoint & Widget', sub: 'Kendi secret key\'iniz ve WordPress widget\'ı' },
+    kullanicilar:{ title: 'Kullanıcılar', sub: 'Kullanıcı yönetimi (sadece admin)' },
+    profil:     { title: 'Profilim',      sub: 'Şifre değişikliği ve hesap ayarları' },
   };
 
   function sayfaGec(id, navEl) {
@@ -517,6 +623,8 @@
     if (id === 'bagiscilar') bagiscilarYukle(1);
     if (id === 'sms') { smsBagisciYukle(1); smsConfigOzet(); }
     if (id === 'widget') widgetSayfaInit();
+    if (id === 'kullanicilar') kullanicilarYukle();
+    if (id === 'profil') profilYukle();
   }
 
   // --- DRAG DROP ---
@@ -528,6 +636,12 @@
   function setDosya(f) { seciliDosya = f; document.getElementById('dosya-adi').textContent = '✓ ' + f.name; document.getElementById('yukle-btn').disabled = false; }
 
   // --- AUTH ---
+  function rolGore(rol) {
+    document.querySelectorAll('.admin-only').forEach(el => {
+      el.style.display = rol === 'admin' ? '' : 'none';
+    });
+  }
+
   async function girisYap() {
     const btn = document.getElementById('giris-btn');
     const hata = document.getElementById('login-hata');
@@ -536,8 +650,11 @@
     try {
       const res = await fetch('/admin/api/giris', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ kullanici_adi: document.getElementById('kullanici-adi').value, sifre: document.getElementById('sifre').value }) });
       const data = await res.json();
-      if (data.basarili) { document.getElementById('login-ekrani').style.display = 'none'; document.getElementById('panel-ekrani').style.display = 'block'; }
-      else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+      if (data.basarili) {
+        document.getElementById('login-ekrani').style.display = 'none';
+        document.getElementById('panel-ekrani').style.display = 'block';
+        rolGore(data.kullanici.rol);
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
     } catch { hata.textContent = 'Sunucuya bağlanılamadı.'; hata.style.display = 'block'; }
     finally { btn.disabled = false; btn.textContent = 'Giriş Yap'; }
   }
@@ -836,13 +953,22 @@
 
   // --- WIDGET ---
   let widgetSablon = null;
+  let kullaniciSecretKey = '';
 
   async function widgetSayfaInit() {
-    // Varsayılan API URL = mevcut origin
     const apiInput = document.getElementById('widget-api-url');
     if (!apiInput.value) apiInput.value = window.location.origin;
 
-    // Şablonu sunucudan çek
+    // Kullanıcının kendi secret key'ini çek
+    try {
+      const r = await fetch('/admin/api/profil', { credentials: 'include' });
+      const d = await r.json();
+      if (d.basarili) {
+        kullaniciSecretKey = d.profil.secret_key;
+        document.getElementById('widget-secret-key').value = kullaniciSecretKey;
+      }
+    } catch {}
+
     if (!widgetSablon) {
       try {
         const res = await fetch('/admin/api/widget/sablon', { credentials: 'include' });
@@ -851,20 +977,46 @@
       } catch {}
     }
     widgetOnizleme();
+    endpointOrnegiGuncelle();
+  }
+
+  function endpointOrnegiGuncelle() {
+    const apiUrl = (document.getElementById('widget-api-url').value || '').replace(/\/$/, '');
+    document.getElementById('endpoint-ornegi').textContent =
+`POST ${apiUrl || 'https://api-adresiniz.com'}/api/sorgula
+Content-Type: application/json
+x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
+
+{ "uniq_kod": "AB12CD34" }
+
+# Cevap:
+{
+  "basarili": true,
+  "bagisci": { "ad_soyad": "...", "uniq_kod": "AB12CD34", "telefon": "..." },
+  "bagislar": [ { "ad_soyad": "...", "durum": "bekliyor", ... } ],
+  "toplam": 3
+}`;
+  }
+
+  async function secretKeyKopyala() {
+    try {
+      await navigator.clipboard.writeText(kullaniciSecretKey);
+      widgetMesaj('✓ Secret key panoya kopyalandı.', 'success');
+    } catch {}
   }
 
   function widgetHtmlOlustur() {
     if (!widgetSablon) return '';
     const apiUrl = (document.getElementById('widget-api-url').value || '').replace(/\/$/, '');
-    const secretKey = document.getElementById('widget-secret-key').value || '';
     return widgetSablon
       .replace(/\{\{API_URL\}\}/g, apiUrl)
-      .replace(/\{\{SECRET_KEY\}\}/g, secretKey);
+      .replace(/\{\{SECRET_KEY\}\}/g, kullaniciSecretKey || '');
   }
 
   function widgetOnizleme() {
     const html = widgetHtmlOlustur();
     document.getElementById('widget-html-onizleme').textContent = html || 'Şablon yükleniyor...';
+    endpointOrnegiGuncelle();
   }
 
   function widgetMesaj(metin, tip) {
@@ -875,12 +1027,9 @@
 
   function widgetKontrolEt() {
     const apiUrl = document.getElementById('widget-api-url').value.trim();
-    const secret = document.getElementById('widget-secret-key').value.trim();
-    if (!apiUrl || !secret) {
-      widgetMesaj('API URL ve Secret Key alanlarını doldurun.', 'error');
-      return null;
-    }
-    return { apiUrl, secret };
+    if (!apiUrl) { widgetMesaj('API URL boş olamaz.', 'error'); return null; }
+    if (!kullaniciSecretKey) { widgetMesaj('Secret key yüklenemedi, sayfayı yenileyin.', 'error'); return null; }
+    return { apiUrl, secret: kullaniciSecretKey };
   }
 
   function widgetIndir() {
@@ -919,6 +1068,142 @@
     win.document.close();
   }
 
+  // --- KULLANICILAR (admin only) ---
+  async function kullanicilarYukle() {
+    const tbody = document.getElementById('kullanicilar-tbody');
+    tbody.innerHTML = `<tr><td colspan="8" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    try {
+      const res = await fetch('/admin/api/kullanicilar', { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="8" class="empty">${data.mesaj || 'Yetkiniz yok.'}</td></tr>`; return; }
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Kayıt yok.</td></tr>`; return; }
+      tbody.innerHTML = data.veri.map(u => `<tr>
+        <td>${u.id}</td>
+        <td><strong>${esc(u.kullanici_adi)}</strong></td>
+        <td>${u.rol === 'admin' ? '<span class="badge" style="background:#fee2e2;color:#991b1b">Admin</span>' : '<span class="badge" style="background:#dbeafe;color:#1d4ed8">User</span>'}</td>
+        <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:5px;font-size:0.78rem">${esc(u.secret_key.slice(0,8))}...${esc(u.secret_key.slice(-4))}</span></td>
+        <td style="text-align:center">${u.bagisci_sayisi}</td>
+        <td style="text-align:center">${u.bagis_sayisi}</td>
+        <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(u.created_at)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick="secretKeyYenile(${u.id}, '${esc(u.kullanici_adi)}')" title="Yeni secret key üret">🔄</button>
+          <button class="btn btn-outline btn-sm" onclick="kullaniciSil(${u.id}, '${esc(u.kullanici_adi)}')" title="Sil" style="color:#dc2626;border-color:#fecaca">🗑️</button>
+        </td>
+      </tr>`).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">Bağlantı hatası.</td></tr>`;
+    }
+  }
+
+  function kullaniciMesaj(metin, tip) {
+    const el = document.getElementById('kullanici-' + tip);
+    el.textContent = metin;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3500);
+  }
+
+  function yeniKullaniciModalAc() {
+    document.getElementById('yeni-kullanici-adi').value = '';
+    document.getElementById('yeni-kullanici-sifre').value = '';
+    document.getElementById('yeni-kullanici-rol').value = 'user';
+    document.getElementById('yeni-kullanici-hata').style.display = 'none';
+    document.getElementById('yeni-kullanici-modal').classList.add('acik');
+  }
+
+  async function yeniKullaniciKaydet() {
+    const btn = document.getElementById('yeni-kullanici-kaydet-btn');
+    const hata = document.getElementById('yeni-kullanici-hata');
+    hata.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Oluşturuluyor...';
+    try {
+      const res = await fetch('/admin/api/kullanicilar', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kullanici_adi: document.getElementById('yeni-kullanici-adi').value,
+          sifre: document.getElementById('yeni-kullanici-sifre').value,
+          rol: document.getElementById('yeni-kullanici-rol').value,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('yeni-kullanici-modal').classList.remove('acik');
+        kullaniciMesaj(`✓ Kullanıcı "${data.kullanici.kullanici_adi}" oluşturuldu. Secret key: ${data.kullanici.secret_key}`, 'basari');
+        kullanicilarYukle();
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Oluştur'; }
+  }
+
+  async function secretKeyYenile(id, kullaniciAdi) {
+    if (!confirm(`"${kullaniciAdi}" için yeni secret key üretilecek. Eski key geçersiz olacak. Devam?`)) return;
+    try {
+      const res = await fetch(`/admin/api/kullanicilar/${id}/secret-key`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        kullaniciMesaj(`✓ Yeni secret key: ${data.secret_key}`, 'basari');
+        kullanicilarYukle();
+      } else { kullaniciMesaj(data.mesaj, 'hata'); }
+    } catch { kullaniciMesaj('Bağlantı hatası.', 'hata'); }
+  }
+
+  async function kullaniciSil(id, kullaniciAdi) {
+    if (!confirm(`"${kullaniciAdi}" silinecek. Bu kullanıcının TÜM bağışçı ve bağışları da silinecek. Emin misiniz?`)) return;
+    try {
+      const res = await fetch(`/admin/api/kullanicilar/${id}`, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) { kullaniciMesaj('✓ Kullanıcı silindi.', 'basari'); kullanicilarYukle(); }
+      else { kullaniciMesaj(data.mesaj, 'hata'); }
+    } catch { kullaniciMesaj('Bağlantı hatası.', 'hata'); }
+  }
+
+  // --- PROFİL ---
+  async function profilYukle() {
+    try {
+      const res = await fetch('/admin/api/profil', { credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('profil-kullanici-adi').value = data.profil.kullanici_adi;
+        document.getElementById('profil-rol').value = data.profil.rol === 'admin' ? 'Admin' : 'Normal Kullanıcı';
+        document.getElementById('profil-secret-key').value = data.profil.secret_key;
+      }
+    } catch {}
+  }
+
+  async function profilSecretKopyala() {
+    try {
+      await navigator.clipboard.writeText(document.getElementById('profil-secret-key').value);
+      const el = document.getElementById('sifre-basari');
+      el.textContent = '✓ Secret key panoya kopyalandı.';
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 2000);
+    } catch {}
+  }
+
+  async function sifreDegistir() {
+    const btn = document.getElementById('sifre-degistir-btn');
+    const hata = document.getElementById('sifre-hata');
+    const basari = document.getElementById('sifre-basari');
+    hata.style.display = 'none'; basari.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Güncelleniyor...';
+    try {
+      const res = await fetch('/admin/api/profil/sifre', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mevcut_sifre: document.getElementById('sifre-mevcut').value,
+          yeni_sifre: document.getElementById('sifre-yeni').value,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        basari.textContent = '✓ Şifre güncellendi.';
+        basari.style.display = 'block';
+        document.getElementById('sifre-mevcut').value = '';
+        document.getElementById('sifre-yeni').value = '';
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Şifreyi Güncelle'; }
+  }
+
   // --- YARDIMCILAR ---
   function renderPagination(tip, data, sayfa) {
     const toplamSayfa = Math.ceil(data.toplam / data.limit);
@@ -942,6 +1227,7 @@
       if (data.girisYapildi) {
         document.getElementById('login-ekrani').style.display = 'none';
         document.getElementById('panel-ekrani').style.display = 'block';
+        if (data.kullanici) rolGore(data.kullanici.rol);
       }
     } catch {}
   })();

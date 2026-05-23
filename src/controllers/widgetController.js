@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const k = require('../services/kullaniciService');
 
 const WIDGET_PATH = path.join(__dirname, '../../public/wordpress-widget.html');
 
@@ -10,27 +11,27 @@ function sablonOku() {
 async function sablonGetir(req, res) {
   try {
     res.json({ basarili: true, sablon: sablonOku() });
-  } catch (err) {
+  } catch {
     res.status(500).json({ basarili: false, mesaj: 'Şablon okunamadı.' });
   }
 }
 
 async function widgetIndir(req, res) {
-  const { api_url, secret_key } = req.query;
-
-  if (!api_url || !secret_key) {
-    return res.status(400).send('api_url ve secret_key parametreleri zorunludur.');
-  }
+  const { api_url } = req.query;
+  if (!api_url) return res.status(400).send('api_url parametresi zorunludur.');
 
   try {
-    const sablon = sablonOku()
+    const user = await k.bulById(req.session.kullaniciId);
+    if (!user) return res.status(404).send('Kullanıcı bulunamadı.');
+
+    const html = sablonOku()
       .replace(/\{\{API_URL\}\}/g, String(api_url).replace(/\/$/, ''))
-      .replace(/\{\{SECRET_KEY\}\}/g, String(secret_key));
+      .replace(/\{\{SECRET_KEY\}\}/g, user.secret_key);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="bagis-sorgulama-widget.html"');
-    res.send(sablon);
-  } catch (err) {
+    res.send(html);
+  } catch {
     res.status(500).send('Widget oluşturulamadı.');
   }
 }

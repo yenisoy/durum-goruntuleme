@@ -7,7 +7,8 @@ const { excelYukle } = require('../controllers/uploadController');
 const { bagiscilarListele, bagislarListele } = require('../controllers/listController');
 const { configGetir, configGuncelle, onizleme, smsSend } = require('../controllers/smsController');
 const { sablonGetir, widgetIndir } = require('../controllers/widgetController');
-const { adminAuthKontrol } = require('../middleware/adminAuth');
+const kCtrl = require('../controllers/kullaniciController');
+const { girisKontrol, adminKontrol } = require('../middleware/adminAuth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -16,26 +17,38 @@ const upload = multer({
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ];
-    if (izinli.includes(file.mimetype) || file.originalname.match(/\.(xls|xlsx)$/i)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Sadece .xls ve .xlsx dosyaları kabul edilir.'));
-    }
+    if (izinli.includes(file.mimetype) || file.originalname.match(/\.(xls|xlsx)$/i)) cb(null, true);
+    else cb(new Error('Sadece .xls ve .xlsx dosyaları kabul edilir.'));
   },
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+// Public auth endpoints
 router.post('/giris', giris);
-router.post('/cikis', adminAuthKontrol, cikis);
 router.get('/durum', durumKontrol);
-router.post('/yukle', adminAuthKontrol, upload.single('excel'), excelYukle);
-router.get('/bagiscilar', adminAuthKontrol, bagiscilarListele);
-router.get('/bagislar', adminAuthKontrol, bagislarListele);
-router.get('/sms/config', adminAuthKontrol, configGetir);
-router.post('/sms/config', adminAuthKontrol, configGuncelle);
-router.post('/sms/onizleme', adminAuthKontrol, onizleme);
-router.post('/sms/gonder', adminAuthKontrol, smsSend);
-router.get('/widget/sablon', adminAuthKontrol, sablonGetir);
-router.get('/widget/indir', adminAuthKontrol, widgetIndir);
+
+// Protected
+router.post('/cikis', girisKontrol, cikis);
+router.post('/yukle', girisKontrol, upload.single('excel'), excelYukle);
+router.get('/bagiscilar', girisKontrol, bagiscilarListele);
+router.get('/bagislar', girisKontrol, bagislarListele);
+
+router.get('/sms/config', girisKontrol, configGetir);
+router.post('/sms/config', girisKontrol, configGuncelle);
+router.post('/sms/onizleme', girisKontrol, onizleme);
+router.post('/sms/gonder', girisKontrol, smsSend);
+
+router.get('/widget/sablon', girisKontrol, sablonGetir);
+router.get('/widget/indir', girisKontrol, widgetIndir);
+
+// Profil (kendi)
+router.get('/profil', girisKontrol, kCtrl.profilGetir);
+router.post('/profil/sifre', girisKontrol, kCtrl.sifreDegistir);
+
+// Kullanıcı yönetimi (sadece admin)
+router.get('/kullanicilar', adminKontrol, kCtrl.listele);
+router.post('/kullanicilar', adminKontrol, kCtrl.olustur);
+router.delete('/kullanicilar/:id', adminKontrol, kCtrl.sil);
+router.post('/kullanicilar/:id/secret-key', adminKontrol, kCtrl.secretKeyYenile);
 
 module.exports = router;

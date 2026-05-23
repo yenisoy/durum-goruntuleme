@@ -1,8 +1,8 @@
 services:
   app:
     build: .
-    ports:
-      - "${PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-bagis}:${POSTGRES_PASSWORD:-bagis123}@db:5432/${POSTGRES_DB:-bagis_db}

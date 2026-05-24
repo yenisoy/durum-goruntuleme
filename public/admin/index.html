@@ -553,6 +553,16 @@
                 <div id="sms-gonder-hata" class="alert alert-error" style="display:none"></div>
                 <div id="sms-gonder-basari" class="alert alert-success" style="display:none"></div>
                 <div class="form-group">
+                  <label>Mesaj Tipi</label>
+                  <select class="form-control" id="sms-mesaj-tipi" style="max-width:340px">
+                    <option value="bilgilendirme">Bilgilendirme (İYS izni gerekmez)</option>
+                    <option value="ticari">Ticari (İYS onayı olan alıcılara)</option>
+                  </select>
+                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">
+                    Bağış durumu bildirimi <strong>Bilgilendirme</strong> niteliğindedir. Pazarlama/kampanya için <strong>Ticari</strong> seçin.
+                  </small>
+                </div>
+                <div class="form-group">
                   <label>Mesajlar arası bekleme (ms)</label>
                   <div class="aralik-row">
                     <input type="number" class="form-control" id="sms-aralik" value="500" min="0" max="60000" style="width:120px">
@@ -925,7 +935,11 @@
     try {
       const res = await fetch('/admin/api/sms/gonder', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bagisci_ids: ids, template, aralik_ms: parseInt(document.getElementById('sms-aralik').value) || 500 }),
+        body: JSON.stringify({
+          bagisci_ids: ids, template,
+          aralik_ms: parseInt(document.getElementById('sms-aralik').value) || 500,
+          mesaj_tipi: document.getElementById('sms-mesaj-tipi').value,
+        }),
       });
       const data = await res.json();
 

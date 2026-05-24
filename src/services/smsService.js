@@ -57,7 +57,7 @@ function netgsmResponseKontrol(response) {
   }
 }
 
-async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs) {
+async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs, iysfilter = '11') {
   const config = await k.netgsmConfigOku(kullaniciId);
   if (!config || !config.username || !config.password || !config.msgheader) {
     throw new Error('Netgsm yapılandırması eksik. Lütfen ayarları kontrol edin.');
@@ -97,11 +97,14 @@ async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs) {
     const mesaj = mesajOlustur(template, b);
 
     try {
-      const response = await netgsm.sendRestSms({
+      const istek = {
         msgheader: config.msgheader,
         encoding: 'TR',
         messages: [{ msg: mesaj, no: tel }],
-      });
+      };
+      // İYS filtresi: '11' = Bilgilendirme (İYS izni gerekmez), '12' = Ticari (İYS izni gerekir)
+      if (iysfilter) istek.iysfilter = String(iysfilter);
+      const response = await netgsm.sendRestSms(istek);
       netgsmResponseKontrol(response);
       sonuclar.basarili++;
       sonuclar.detay.push({ id: b.id, ad: b.ad_soyad, tel, durum: 'gönderildi' });

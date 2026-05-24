@@ -48,7 +48,7 @@ async function onizleme(req, res) {
 }
 
 async function smsSend(req, res) {
-  const { bagisci_ids, template, aralik_ms } = req.body;
+  const { bagisci_ids, template, aralik_ms, mesaj_tipi } = req.body;
   if (!Array.isArray(bagisci_ids) || bagisci_ids.length === 0) {
     return res.status(400).json({ basarili: false, mesaj: 'En az bir bağışçı seçin.' });
   }
@@ -56,8 +56,10 @@ async function smsSend(req, res) {
     return res.status(400).json({ basarili: false, mesaj: 'Mesaj şablonu boş olamaz.' });
   }
   const aralik = Math.max(0, Math.min(60000, parseInt(aralik_ms) || 500));
+  // Bilgilendirme = '11', Ticari = '12'
+  const iysfilter = mesaj_tipi === 'ticari' ? '12' : '11';
   try {
-    const sonuc = await topluSmsSend(req.session.kullaniciId, bagisci_ids, template, aralik);
+    const sonuc = await topluSmsSend(req.session.kullaniciId, bagisci_ids, template, aralik, iysfilter);
     res.json({ basarili: true, sonuc });
   } catch (err) {
     res.status(500).json({ basarili: false, mesaj: err.message });

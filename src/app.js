@@ -19,13 +19,26 @@ if (process.env.TRUST_PROXY) {
   app.set('trust proxy', isNaN(trust) ? trust : parseInt(trust));
 }
 
-// CORS
-app.use(cors({
+// CORS — iki ayrı politika:
+// /api/*    → public, her origin'den erişilebilir (secret key korumalı)
+// /admin/*  → session cookie kullanıyor, sadece tanımlı origin'lere açık
+const adminCors = cors({
   origin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-    : '*',
+    : true,
   credentials: true,
-}));
+});
+
+const publicCors = cors({
+  origin: '*',
+  credentials: false,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-secret-key'],
+});
+
+app.use('/api', publicCors);
+app.use('/admin', adminCors);
+app.use(adminCors); // diğer rotalar için (health vs)
 
 // Body parser
 app.use(express.json());

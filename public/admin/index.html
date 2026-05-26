@@ -678,8 +678,43 @@
                 <div class="card-header"><span class="card-title">Aktif Gönderim</span></div>
                 <div id="wa-aktif-job-body"></div>
               </div>
+
+              <!-- GÖNDERİM GEÇMİŞİ -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Gönderim Geçmişi</span>
+                  <button class="btn btn-outline btn-sm" onclick="waJoblariYukle()" title="Yenile">🔄</button>
+                </div>
+                <div id="wa-job-listesi">
+                  <div class="empty" style="padding:18px">Yükleniyor...</div>
+                </div>
+              </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- JOB DETAY MODAL -->
+        <div class="modal-overlay" id="wa-job-detay-modal">
+          <div class="modal" style="max-width:800px;max-height:90vh;overflow:auto">
+            <div class="modal-header">
+              <span class="modal-title" id="wa-job-detay-baslik">Gönderim Detayı</span>
+              <button class="modal-kapat" onclick="document.getElementById('wa-job-detay-modal').classList.remove('acik')">×</button>
+            </div>
+            <div id="wa-job-detay-ozet" style="margin-bottom:14px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:0.82rem">
+              <button class="btn btn-outline btn-sm" id="wa-filtre-tum" onclick="waItemFiltresi(null)">Tümü</button>
+              <button class="btn btn-outline btn-sm" onclick="waItemFiltresi('sent')" style="color:#16a34a">✓ Gönderilen</button>
+              <button class="btn btn-outline btn-sm" onclick="waItemFiltresi('failed')" style="color:#dc2626">✗ Hatalı</button>
+              <button class="btn btn-outline btn-sm" onclick="waItemFiltresi('skipped')" style="color:#9ca3af">— Atlanan</button>
+              <button class="btn btn-outline btn-sm" onclick="waItemFiltresi('pending')" style="color:#1d4ed8">⏱ Bekleyen</button>
+            </div>
+            <div class="tablo-wrapper" style="max-height:450px;overflow-y:auto">
+              <table>
+                <thead><tr><th>#</th><th>Bağışçı</th><th>Telefon</th><th>Durum</th><th>Detay</th></tr></thead>
+                <tbody id="wa-job-detay-items"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1378,8 +1413,9 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     await waTemplatesYukle();
     waBagisciYukle(1);
     waAktifJobYukle();
+    waJoblariYukle();
     if (waJobPollTimer) clearInterval(waJobPollTimer);
-    waJobPollTimer = setInterval(waAktifJobYukle, 3000);
+    waJobPollTimer = setInterval(() => { waAktifJobYukle(); waJoblariYukle(); }, 3000);
   }
 
   async function waConfigOzet() {
@@ -1854,13 +1890,119 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     } catch {}
   }
 
-  async function waJobDurdur(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/durdur`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); }
-  async function waJobDevam(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/devam`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); }
+  async function waJobDurdur(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/durdur`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); waJoblariYukle(); }
+  async function waJobDevam(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/devam`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); waJoblariYukle(); }
   async function waJobIptal(id) {
     if (!confirm('Gönderim iptal edilecek. Bekleyen mesajlar gönderilmez.')) return;
     await fetch(`/admin/api/whatsapp/jobs/${id}/iptal`, { method: 'POST', credentials: 'include' });
-    waAktifJobYukle();
+    waAktifJobYukle(); waJoblariYukle();
   }
+
+  // GÖNDERİM GEÇMİŞİ
+  async function waJoblariYukle() {
+    try {
+      const r = await fetch('/admin/api/whatsapp/jobs', { credentials: 'include' });
+      const d = await r.json();
+      const el = document.getElementById('wa-job-listesi');
+      if (!d.basarili || !d.veri.length) {
+        el.innerHTML = '<div class="empty" style="padding:18px">Henüz gönderim yok.</div>';
+        return;
+      }
+      el.innerHTML = d.veri.map(j => {
+        const durumMetin = {
+          queued: 'Sırada', running: 'Çalışıyor', paused: 'Duraklatıldı',
+          completed: 'Tamamlandı', cancelled: 'İptal', failed: 'Hata'
+        }[j.durum] || j.durum;
+        const yuzde = j.toplam > 0 ? Math.round((j.islenmis / j.toplam) * 100) : 0;
+        return `
+          <div onclick="waJobDetayAc(${j.id})" style="cursor:pointer;padding:11px 0;border-bottom:1px solid #f3f4f6">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <div style="font-size:0.85rem">
+                <strong>#${j.id}</strong> · ${esc(j.template_ad)}
+              </div>
+              <span class="durum-badge durum-${j.durum}">${durumMetin}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#9ca3af">
+              <span>${j.islenmis} / ${j.toplam} · ✓ ${j.basarili} · ✗ ${j.basarisiz} · — ${j.atlanan}</span>
+              <span>${tarihFormat(j.created_at)}</span>
+            </div>
+            ${j.toplam > 0 ? `
+              <div class="progress-bar-wrap" style="margin-top:6px;height:4px"><div class="progress-bar-fill" style="width:${yuzde}%"></div></div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    } catch {}
+  }
+
+  let waJobDetayItems = [];
+  let waJobDetayId = null;
+
+  async function waJobDetayAc(jobId) {
+    waJobDetayId = jobId;
+    document.getElementById('wa-job-detay-modal').classList.add('acik');
+    document.getElementById('wa-job-detay-items').innerHTML = `<tr><td colspan="5" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    document.getElementById('wa-job-detay-ozet').innerHTML = '';
+    try {
+      const r = await fetch(`/admin/api/whatsapp/jobs/${jobId}`, { credentials: 'include' });
+      const d = await r.json();
+      if (!d.basarili) {
+        document.getElementById('wa-job-detay-items').innerHTML = `<tr><td colspan="5" class="empty">${d.mesaj || 'Yüklenemedi.'}</td></tr>`;
+        return;
+      }
+      const j = d.job;
+      const durumMetin = {
+        queued: 'Sırada', running: 'Çalışıyor', paused: 'Duraklatıldı',
+        completed: 'Tamamlandı', cancelled: 'İptal', failed: 'Hata'
+      }[j.durum] || j.durum;
+
+      document.getElementById('wa-job-detay-baslik').textContent = `#${j.id} · ${j.template_ad} (${durumMetin})`;
+      document.getElementById('wa-job-detay-ozet').innerHTML = `
+        <div class="ozet-grid" style="grid-template-columns:repeat(4, 1fr)">
+          <div class="ozet-item"><div class="sayi">${j.toplam}</div><div class="etiket">Toplam</div></div>
+          <div class="ozet-item"><div class="sayi" style="color:#16a34a">${j.basarili}</div><div class="etiket">Başarılı</div></div>
+          <div class="ozet-item"><div class="sayi" style="color:#dc2626">${j.basarisiz}</div><div class="etiket">Hata</div></div>
+          <div class="ozet-item"><div class="sayi" style="color:#9ca3af">${j.atlanan}</div><div class="etiket">Atlandı</div></div>
+        </div>
+        ${j.hata_mesaji ? `<div class="alert alert-error" style="margin-top:10px;font-size:0.82rem">${esc(j.hata_mesaji)}</div>` : ''}
+      `;
+
+      waJobDetayItems = d.items || [];
+      waItemFiltresi(null);
+    } catch (e) {
+      document.getElementById('wa-job-detay-items').innerHTML = `<tr><td colspan="5" class="empty">Bağlantı hatası.</td></tr>`;
+    }
+  }
+
+  function waItemFiltresi(durum) {
+    const items = durum ? waJobDetayItems.filter(i => i.durum === durum) : waJobDetayItems;
+    const tbody = document.getElementById('wa-job-detay-items');
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">Kayıt yok.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = items.map(i => {
+      const ikonCss = {
+        sent:    { ikon: '✓', renk: '#16a34a' },
+        failed:  { ikon: '✗', renk: '#dc2626' },
+        skipped: { ikon: '—', renk: '#9ca3af' },
+        pending: { ikon: '⏱', renk: '#1d4ed8' },
+      }[i.durum] || { ikon: '?', renk: '#9ca3af' };
+      const durumLabel = { sent: 'Gönderildi', failed: 'Hata', skipped: 'Atlandı', pending: 'Bekliyor' }[i.durum] || i.durum;
+      return `<tr>
+        <td>${i.sirano}</td>
+        <td><strong>${esc(i.bagisci_ad)}</strong></td>
+        <td class="mono" style="font-size:0.82rem">${esc(i.telefon) || '—'}</td>
+        <td><span style="color:${ikonCss.renk};font-weight:600">${ikonCss.ikon} ${durumLabel}</span></td>
+        <td style="color:${i.durum === 'failed' ? '#dc2626' : '#6b7280'};font-size:0.82rem">${esc(i.sebep || '—')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Modal dışına tıklayınca kapat
+  document.getElementById('wa-job-detay-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('acik');
+  });
 
   // --- KULLANICILAR (admin only) ---
   async function kullanicilarYukle() {

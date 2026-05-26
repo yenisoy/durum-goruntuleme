@@ -18,3 +18,4 @@ dist/
 build/
 test-bagislar.xlsx
 .claude/
+docker-compose.override.yml

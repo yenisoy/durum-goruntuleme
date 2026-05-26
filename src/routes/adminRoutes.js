@@ -8,6 +8,7 @@ const { bagiscilarListele, bagislarListele } = require('../controllers/listContr
 const { configGetir, configGuncelle, onizleme, smsSend } = require('../controllers/smsController');
 const { sablonGetir, widgetIndir } = require('../controllers/widgetController');
 const kCtrl = require('../controllers/kullaniciController');
+const waCtrl = require('../controllers/whatsappController');
 const { girisKontrol, adminKontrol } = require('../middleware/adminAuth');
 
 const upload = multer({
@@ -44,6 +45,24 @@ router.get('/widget/indir', girisKontrol, widgetIndir);
 // Profil (kendi)
 router.get('/profil', girisKontrol, kCtrl.profilGetir);
 router.post('/profil/sifre', girisKontrol, kCtrl.sifreDegistir);
+
+
+// WhatsApp (Monochat) — config, template, job
+router.get('/whatsapp/config', girisKontrol, waCtrl.configGetir);
+router.post('/whatsapp/config', girisKontrol, waCtrl.configGuncelle);
+
+router.get('/whatsapp/templates', girisKontrol, waCtrl.templatesListele);
+router.post('/whatsapp/templates', girisKontrol, waCtrl.templateOlustur);
+router.put('/whatsapp/templates/:id', girisKontrol, waCtrl.templateGuncelle);
+router.delete('/whatsapp/templates/:id', girisKontrol, waCtrl.templateSil);
+
+router.get('/whatsapp/jobs', girisKontrol, waCtrl.jobListele);
+router.get('/whatsapp/jobs/aktif', girisKontrol, waCtrl.jobAktif);
+router.post('/whatsapp/jobs', girisKontrol, waCtrl.jobOlusturBaslat);
+router.get('/whatsapp/jobs/:id', girisKontrol, waCtrl.jobDurum);
+router.post('/whatsapp/jobs/:id/durdur', girisKontrol, waCtrl.jobDurdur);
+router.post('/whatsapp/jobs/:id/devam', girisKontrol, waCtrl.jobDevam);
+router.post('/whatsapp/jobs/:id/iptal', girisKontrol, waCtrl.jobIptal);
 
 // Kullanıcı yönetimi (sadece admin)
 router.get('/kullanicilar', adminKontrol, kCtrl.listele);

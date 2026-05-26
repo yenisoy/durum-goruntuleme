@@ -1,7 +1,7 @@
 const pool = require('./database');
 
 const migrationSQL = `
--- Multi-tenant yapıya geçiş: eski şema varsa (kullanicilar yoksa) temizle
+-- İlk kurulum: kullanicilar yoksa eski şemayı temizle
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kullanicilar') THEN
@@ -12,7 +12,6 @@ BEGIN
   END IF;
 END $$;
 
--- Kullanıcılar
 CREATE TABLE IF NOT EXISTS kullanicilar (
   id SERIAL PRIMARY KEY,
   kullanici_adi VARCHAR(50) UNIQUE NOT NULL,
@@ -23,11 +22,25 @@ CREATE TABLE IF NOT EXISTS kullanicilar (
   netgsm_password VARCHAR(255),
   netgsm_appname VARCHAR(100),
   netgsm_msgheader VARCHAR(50),
+  mono_slug VARCHAR(100),
+  mono_api_token VARCHAR(500),
+  mono_business_phone VARCHAR(20),
+  mono_base_url VARCHAR(255) DEFAULT 'https://app.monochat.ai',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Bağışçılar (her bağışçı bir kullanıcıya ait)
+-- Mevcut kullanicilar tablosuna Monochat sütunlarını ekle (mevcut DB için)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kullanicilar' AND column_name = 'mono_slug') THEN
+    ALTER TABLE kullanicilar ADD COLUMN mono_slug VARCHAR(100);
+    ALTER TABLE kullanicilar ADD COLUMN mono_api_token VARCHAR(500);
+    ALTER TABLE kullanicilar ADD COLUMN mono_business_phone VARCHAR(20);
+    ALTER TABLE kullanicilar ADD COLUMN mono_base_url VARCHAR(255) DEFAULT 'https://app.monochat.ai';
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS bagiscilar (
   id SERIAL PRIMARY KEY,
   kullanici_id INTEGER NOT NULL REFERENCES kullanicilar(id) ON DELETE CASCADE,
@@ -43,7 +56,6 @@ CREATE TABLE IF NOT EXISTS bagiscilar (
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_kullanici ON bagiscilar(kullanici_id);
 
--- Bağışlar (her bağış bir kullanıcıya ait)
 CREATE TABLE IF NOT EXISTS bagislar (
   id SERIAL PRIMARY KEY,
   kullanici_id INTEGER NOT NULL REFERENCES kullanicilar(id) ON DELETE CASCADE,
@@ -65,6 +77,62 @@ CREATE TABLE IF NOT EXISTS bagislar (
 CREATE INDEX IF NOT EXISTS idx_bagislar_kullanici ON bagislar(kullanici_id);
 CREATE INDEX IF NOT EXISTS idx_bagislar_bagisci_id ON bagislar(bagisci_id);
 CREATE INDEX IF NOT EXISTS idx_bagislar_referans_id ON bagislar(referans_id);
+
+-- WhatsApp template tanımları
+CREATE TABLE IF NOT EXISTS whatsapp_templates (
+  id SERIAL PRIMARY KEY,
+  kullanici_id INTEGER NOT NULL REFERENCES kullanicilar(id) ON DELETE CASCADE,
+  ad VARCHAR(100) NOT NULL,
+  dil_kodu VARCHAR(10) DEFAULT 'tr',
+  components JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (kullanici_id, ad)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_templates_kullanici ON whatsapp_templates(kullanici_id);
+
+-- WhatsApp gönderim job'ları (background)
+CREATE TABLE IF NOT EXISTS whatsapp_jobs (
+  id SERIAL PRIMARY KEY,
+  kullanici_id INTEGER NOT NULL REFERENCES kullanicilar(id) ON DELETE CASCADE,
+  template_id INTEGER REFERENCES whatsapp_templates(id) ON DELETE SET NULL,
+  template_ad VARCHAR(100),
+  template_dil VARCHAR(10),
+  template_snapshot JSONB,
+  header_input TEXT,
+  body_inputs JSONB DEFAULT '[]',
+  aralik_ms INTEGER DEFAULT 600,
+  durum VARCHAR(20) DEFAULT 'queued' CHECK (durum IN ('queued','running','paused','completed','cancelled','failed')),
+  toplam INTEGER DEFAULT 0,
+  islenmis INTEGER DEFAULT 0,
+  basarili INTEGER DEFAULT 0,
+  basarisiz INTEGER DEFAULT 0,
+  atlanan INTEGER DEFAULT 0,
+  hata_mesaji TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  bitis_zamani TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_jobs_kullanici ON whatsapp_jobs(kullanici_id);
+CREATE INDEX IF NOT EXISTS idx_wa_jobs_durum ON whatsapp_jobs(durum);
+
+-- Job içindeki tekil mesaj kayıtları
+CREATE TABLE IF NOT EXISTS whatsapp_job_items (
+  id SERIAL PRIMARY KEY,
+  job_id INTEGER NOT NULL REFERENCES whatsapp_jobs(id) ON DELETE CASCADE,
+  bagisci_id INTEGER REFERENCES bagiscilar(id) ON DELETE SET NULL,
+  bagisci_ad VARCHAR(255),
+  telefon VARCHAR(20),
+  durum VARCHAR(20) DEFAULT 'pending' CHECK (durum IN ('pending','sent','failed','skipped')),
+  sebep TEXT,
+  sirano INTEGER NOT NULL,
+  processed_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_items_job ON whatsapp_job_items(job_id);
+CREATE INDEX IF NOT EXISTS idx_wa_items_durum ON whatsapp_job_items(durum);
 `;
 
 async function runMigration() {
@@ -72,7 +140,6 @@ async function runMigration() {
   try {
     await client.query(migrationSQL);
 
-    // İlk admin'i oluştur (hiç kullanıcı yoksa)
     const sayim = await client.query('SELECT COUNT(*)::int AS sayi FROM kullanicilar');
     if (sayim.rows[0].sayi === 0) {
       const adminUser = process.env.ADMIN_USERNAME || 'admin';
@@ -92,6 +159,11 @@ async function runMigration() {
       );
       console.log(`İlk admin oluşturuldu: ${adminUser}`);
     }
+
+    // Çalışmakta kalan job'ları "paused" yap (server restart sonrası)
+    await client.query(
+      "UPDATE whatsapp_jobs SET durum = 'paused', updated_at = NOW() WHERE durum = 'running'"
+    );
 
     console.log('Migration başarıyla tamamlandı.');
   } catch (err) {

@@ -143,6 +143,39 @@
     .modal-kapat:hover { color: #374151; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
+    /* TABS */
+    .ayar-tab { background: none; border: none; padding: 10px 18px; font-size: 0.88rem; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
+    .ayar-tab:hover { color: #374151; }
+    .ayar-tab.tab-aktif { color: #16213e; border-bottom-color: #16213e; }
+
+    /* WHATSAPP */
+    .wa-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+    @media (max-width: 980px) { .wa-grid { grid-template-columns: 1fr; } }
+    .wa-vars { display: grid; gap: 10px; }
+    .wa-var-row { display: flex; gap: 8px; align-items: center; }
+    .wa-var-row .wa-var-label { min-width: 110px; font-size: 0.82rem; color: #6b7280; font-weight: 600; }
+    .wa-template-card { border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.15s; }
+    .wa-template-card:hover { border-color: #4f9cf9; background: #fafbff; }
+    .wa-template-card.aktif { border-color: #16213e; background: #f0f4ff; }
+    .wa-collapsible { border: 1.5px solid #e5e7eb; border-radius: 10px; margin-top: 10px; }
+    .wa-collapsible-header { padding: 11px 16px; cursor: pointer; user-select: none; font-size: 0.88rem; font-weight: 600; color: #374151; display: flex; align-items: center; justify-content: space-between; }
+    .wa-collapsible-header:hover { background: #fafbff; }
+    .wa-collapsible-body { padding: 0 16px 16px; display: none; }
+    .wa-collapsible.acik .wa-collapsible-body { display: block; }
+    .wa-collapsible.acik .wa-chevron { transform: rotate(90deg); }
+    .wa-chevron { display: inline-block; transition: transform 0.2s; }
+    .json-editor { width: 100%; min-height: 250px; font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.5; padding: 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; resize: vertical; }
+    .json-editor.invalid { border-color: #dc2626; background: #fef2f2; }
+
+    /* JOB STATUS */
+    .durum-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .durum-running { background: #dbeafe; color: #1d4ed8; }
+    .durum-paused { background: #fef3c7; color: #92400e; }
+    .durum-completed { background: #dcfce7; color: #166534; }
+    .durum-cancelled { background: #f3f4f6; color: #6b7280; }
+    .durum-failed { background: #fef2f2; color: #dc2626; }
+    .durum-queued { background: #e0e7ff; color: #3730a3; }
+
     /* SPINNER */
     .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -170,34 +203,68 @@
   </div>
 </div>
 
-<!-- AYARLAR MODAL -->
+<!-- AYARLAR MODAL (sekmeli — Netgsm + WhatsApp) -->
 <div class="modal-overlay" id="ayarlar-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
-      <span class="modal-title">⚙️ Netgsm Ayarları</span>
+      <span class="modal-title">⚙️ Entegrasyon Ayarları</span>
       <button class="modal-kapat" onclick="modalKapat()">×</button>
     </div>
-    <div id="ayarlar-hata" class="alert alert-error" style="display:none"></div>
-    <div id="ayarlar-basari" class="alert alert-success" style="display:none"></div>
-    <div class="form-group">
-      <label>Kullanıcı Adı (Abone No)</label>
-      <input type="text" class="form-control" id="cfg-username" placeholder="850xxxxxxx">
+    <div style="display:flex;gap:4px;border-bottom:1.5px solid #f3f4f6;margin-bottom:18px">
+      <button class="ayar-tab tab-aktif" id="tab-netgsm" onclick="ayarTabGec('netgsm')">Netgsm SMS</button>
+      <button class="ayar-tab" id="tab-whatsapp" onclick="ayarTabGec('whatsapp')">WhatsApp (Monochat)</button>
     </div>
-    <div class="form-group">
-      <label>API Şifresi</label>
-      <input type="password" class="form-control" id="cfg-password" placeholder="Boş bırakırsan değişmez">
+
+    <!-- NETGSM TAB -->
+    <div id="ayar-icerik-netgsm">
+      <div id="ayarlar-hata" class="alert alert-error" style="display:none"></div>
+      <div id="ayarlar-basari" class="alert alert-success" style="display:none"></div>
+      <div class="form-group">
+        <label>Kullanıcı Adı (Abone No)</label>
+        <input type="text" class="form-control" id="cfg-username" placeholder="850xxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>API Şifresi</label>
+        <input type="password" class="form-control" id="cfg-password" placeholder="Boş bırakırsan değişmez">
+      </div>
+      <div class="form-group">
+        <label>Gönderici Başlığı (msgheader)</label>
+        <input type="text" class="form-control" id="cfg-msgheader" placeholder="ONAYLIBASLIK">
+      </div>
+      <div class="form-group">
+        <label>Proje Adı (appname — opsiyonel)</label>
+        <input type="text" class="form-control" id="cfg-appname" placeholder="Bagis Sistemi">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="modalKapat()">İptal</button>
+        <button class="btn btn-primary" id="ayarlar-kaydet-btn" onclick="ayarlariKaydet()">Netgsm Kaydet</button>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Gönderici Başlığı (msgheader)</label>
-      <input type="text" class="form-control" id="cfg-msgheader" placeholder="ONAYLIBASLIK">
-    </div>
-    <div class="form-group">
-      <label>Proje Adı (appname — opsiyonel)</label>
-      <input type="text" class="form-control" id="cfg-appname" placeholder="Bagis Sistemi">
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="modalKapat()">İptal</button>
-      <button class="btn btn-primary" id="ayarlar-kaydet-btn" onclick="ayarlariKaydet()">Kaydet</button>
+
+    <!-- WHATSAPP TAB -->
+    <div id="ayar-icerik-whatsapp" style="display:none">
+      <div id="wa-cfg-hata" class="alert alert-error" style="display:none"></div>
+      <div id="wa-cfg-basari" class="alert alert-success" style="display:none"></div>
+      <div class="form-group">
+        <label>Slug (Monochat workspace)</label>
+        <input type="text" class="form-control" id="wa-cfg-slug" placeholder="workspace-slug">
+      </div>
+      <div class="form-group">
+        <label>API Token (Bearer)</label>
+        <input type="password" class="form-control" id="wa-cfg-token" placeholder="Boş bırakırsan değişmez">
+      </div>
+      <div class="form-group">
+        <label>Business Phone</label>
+        <input type="text" class="form-control mono" id="wa-cfg-business-phone" placeholder="90xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="text" class="form-control" id="wa-cfg-base-url" placeholder="https://app.monochat.ai" value="https://app.monochat.ai">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="modalKapat()">İptal</button>
+        <button class="btn btn-primary" id="wa-cfg-kaydet-btn" onclick="whatsappCfgKaydet()">WhatsApp Kaydet</button>
+      </div>
     </div>
   </div>
 </div>
@@ -226,6 +293,9 @@
         </div>
         <div class="nav-item" data-sayfa="sms" onclick="sayfaGec('sms', this)">
           <span class="nav-icon">💬</span> SMS Gönder
+        </div>
+        <div class="nav-item" data-sayfa="whatsapp" onclick="sayfaGec('whatsapp', this)">
+          <span class="nav-icon">📱</span> WhatsApp Gönder
         </div>
         <div class="nav-item" data-sayfa="widget" onclick="sayfaGec('widget', this)">
           <span class="nav-icon">🌐</span> Endpoint / Widget
@@ -494,6 +564,195 @@
           </div>
         </div>
 
+        <!-- WHATSAPP GÖNDER -->
+        <div id="sayfa-whatsapp" class="sayfa">
+          <div class="wa-grid">
+
+            <!-- SOL: TEMPLATE + GÖNDER -->
+            <div>
+
+              <!-- TEMPLATE SEÇİMİ -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Template Seç</span>
+                  <button class="btn btn-primary btn-sm" onclick="waTemplateYeniModal()">+ Yeni Template</button>
+                </div>
+                <div id="wa-template-listesi"></div>
+              </div>
+
+              <!-- TEMPLATE VARIABLE GİRİŞLERİ -->
+              <div class="card" id="wa-form-card" style="display:none">
+                <div class="card-header">
+                  <span class="card-title" id="wa-secili-template-ad">—</span>
+                  <button class="btn btn-outline btn-sm" onclick="waTemplateDuzenle()">Düzenle</button>
+                </div>
+
+                <div id="wa-header-grup" style="display:none" class="form-group">
+                  <label id="wa-header-label">Header</label>
+                  <input type="text" class="form-control" id="wa-header-input" oninput="waOnizleme()">
+                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">
+                    Placeholder kullanabilirsin: <code>{BAGISCI_ADI_SOYADI}</code> <code>{UNIQ_KOD}</code>
+                  </small>
+                </div>
+
+                <div class="form-group">
+                  <label>Body Değişkenleri</label>
+                  <div class="wa-vars" id="wa-body-vars"></div>
+                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:6px;display:block">
+                    Her giriş için <code>{BAGISCI_ADI_SOYADI}</code> ve <code>{UNIQ_KOD}</code> placeholder'larını kullanabilirsin.
+                  </small>
+                </div>
+
+                <div id="wa-footer-grup" style="display:none" class="form-group">
+                  <label>Footer</label>
+                  <div id="wa-footer-text" style="padding:10px 14px;background:#f9fafb;border-radius:8px;font-size:0.85rem;color:#6b7280"></div>
+                </div>
+
+                <div class="form-group">
+                  <label>Önizleme (örnek bağışçı ile)</label>
+                  <div class="onizleme-kutu" id="wa-onizleme">Şablon doldurun...</div>
+                </div>
+              </div>
+
+              <!-- BAĞIŞÇI SEÇİMİ -->
+              <div class="card" id="wa-bagisci-card" style="display:none">
+                <div class="card-header">
+                  <span class="card-title">Bağışçı Seçimi</span>
+                  <span id="wa-secim-bilgi" style="font-size:0.82rem;color:#9ca3af"></span>
+                </div>
+                <div class="secim-bar">
+                  <input type="checkbox" id="wa-hepsini-sec" onchange="waHepsiniSec(this.checked)">
+                  <label for="wa-hepsini-sec" style="cursor:pointer;font-size:0.85rem">Tüm sayfayı seç</label>
+                  <span style="color:#d1d5db">|</span>
+                  <strong id="wa-secilen-sayi">0</strong> <span style="color:#6b7280">seçildi</span>
+                  <span style="flex:1"></span>
+                  <input class="arama-input" id="wa-bagisci-arama" placeholder="Ara..." oninput="waBagisciAramaGecikme()" style="width:160px">
+                  <select class="filtre-select" id="wa-bagisci-limit" onchange="waBagisciYukle(1)">
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                    <option value="1000">1.000</option>
+                    <option value="10000">10.000</option>
+                  </select>
+                </div>
+                <div class="tablo-wrapper">
+                  <table>
+                    <thead><tr><th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th></tr></thead>
+                    <tbody id="wa-bagisci-tbody"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
+                  </table>
+                </div>
+                <div class="pagination" id="wa-bagisci-pagination"></div>
+              </div>
+
+              <!-- GÖNDER -->
+              <div class="card" id="wa-gonder-card" style="display:none">
+                <div class="card-header"><span class="card-title">Gönderim Başlat</span></div>
+                <div id="wa-gonder-hata" class="alert alert-error" style="display:none"></div>
+                <div class="form-group">
+                  <label>Mesajlar arası bekleme (ms)</label>
+                  <div class="aralik-row">
+                    <input type="number" class="form-control" id="wa-aralik" value="600" min="500" max="60000" style="width:120px">
+                    <span style="font-size:0.82rem;color:#9ca3af">Min 500ms (1 dakikada max 120 mesaj)</span>
+                  </div>
+                </div>
+                <button class="btn btn-success" id="wa-gonder-btn" onclick="waGonderBaslat()" style="width:100%">
+                  🚀 WhatsApp Gönderimini Başlat
+                </button>
+              </div>
+            </div>
+
+            <!-- SAĞ: AKTİF JOB + CONFIG -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">Monochat Bağlantısı</span>
+                  <button class="btn btn-outline btn-sm" onclick="ayarlarAc('whatsapp')">Düzenle</button>
+                </div>
+                <div id="wa-config-ozet">
+                  <div class="empty" style="padding:18px">Yükleniyor...</div>
+                </div>
+              </div>
+
+              <!-- AKTİF JOB DURUMU -->
+              <div class="card" id="wa-aktif-job-card" style="display:none">
+                <div class="card-header"><span class="card-title">Aktif Gönderim</span></div>
+                <div id="wa-aktif-job-body"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- WHATSAPP TEMPLATE EDITOR MODAL -->
+        <div class="modal-overlay" id="wa-template-modal">
+          <div class="modal" style="max-width:700px">
+            <div class="modal-header">
+              <span class="modal-title" id="wa-template-modal-baslik">Template Düzenle</span>
+              <button class="modal-kapat" onclick="document.getElementById('wa-template-modal').classList.remove('acik')">×</button>
+            </div>
+            <div id="wa-template-hata" class="alert alert-error" style="display:none"></div>
+            <div class="form-group">
+              <label>Template Adı (Monochat'teki ad)</label>
+              <input type="text" class="form-control" id="wa-tmpl-ad" placeholder="bagis_bildirimi">
+            </div>
+            <div class="form-group">
+              <label>Dil Kodu</label>
+              <input type="text" class="form-control" id="wa-tmpl-dil" placeholder="tr" value="tr" style="max-width:120px">
+            </div>
+
+            <div class="form-group">
+              <label>Header Var mı?</label>
+              <select class="form-control" id="wa-tmpl-header-var" onchange="waTemplateFormGuncelle()" style="max-width:200px">
+                <option value="hayir">Hayır</option>
+                <option value="evet">Evet</option>
+              </select>
+            </div>
+            <div class="form-group" id="wa-tmpl-header-format-grup" style="display:none">
+              <label>Header Tipi</label>
+              <select class="form-control" id="wa-tmpl-header-format" onchange="waTemplateFormGuncelle()" style="max-width:200px">
+                <option value="TEXT">Metin</option>
+                <option value="IMAGE">Resim (URL)</option>
+                <option value="VIDEO">Video (URL)</option>
+                <option value="DOCUMENT">Belge (URL)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Body Değişken Sayısı (0-9)</label>
+              <input type="number" class="form-control" id="wa-tmpl-body-count" min="0" max="9" value="0" onchange="waTemplateFormGuncelle()" oninput="waTemplateFormGuncelle()" style="max-width:120px">
+            </div>
+
+            <div class="form-group">
+              <label>Footer Var mı?</label>
+              <select class="form-control" id="wa-tmpl-footer-var" onchange="waTemplateFormGuncelle()" style="max-width:200px">
+                <option value="hayir">Hayır</option>
+                <option value="evet">Evet</option>
+              </select>
+            </div>
+            <div class="form-group" id="wa-tmpl-footer-text-grup" style="display:none">
+              <label>Footer Metni (sabit)</label>
+              <input type="text" class="form-control" id="wa-tmpl-footer-text" placeholder="Teşekkürler" oninput="waTemplateFormGuncelle()">
+            </div>
+
+            <div class="wa-collapsible" id="wa-tmpl-json-collapse">
+              <div class="wa-collapsible-header" onclick="document.getElementById('wa-tmpl-json-collapse').classList.toggle('acik')">
+                <span><span class="wa-chevron">▶</span> JSON Görünümü (gelişmiş)</span>
+                <small style="color:#9ca3af;font-weight:400">Çift yönlü senkronize</small>
+              </div>
+              <div class="wa-collapsible-body">
+                <textarea class="json-editor" id="wa-tmpl-json" oninput="waTemplateJsonDegisti()"></textarea>
+                <small id="wa-tmpl-json-hata" style="color:#dc2626;font-size:0.78rem;display:none">JSON geçersiz</small>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-outline" id="wa-tmpl-sil-btn" onclick="waTemplateSil()" style="margin-right:auto;color:#dc2626;border-color:#fecaca;display:none">🗑️ Sil</button>
+              <button class="btn btn-outline" onclick="document.getElementById('wa-template-modal').classList.remove('acik')">İptal</button>
+              <button class="btn btn-primary" id="wa-tmpl-kaydet-btn" onclick="waTemplateKaydet()">Kaydet</button>
+            </div>
+          </div>
+        </div>
+
         <!-- SMS GÖNDER -->
         <div id="sayfa-sms" class="sayfa">
           <div class="sms-grid">
@@ -616,6 +875,7 @@
     bagislar:   { title: 'Bağışlar',      sub: 'Tüm bağış kayıtları' },
     bagiscilar: { title: 'Bağışçılar',    sub: 'Bağışçı listesi ve uniq kodlar' },
     sms:        { title: 'SMS Gönder',    sub: 'Bağışçılara toplu SMS gönder' },
+    whatsapp:   { title: 'WhatsApp Gönder', sub: 'Monochat üzerinden template mesajları' },
     widget:     { title: 'Endpoint & Widget', sub: 'Kendi secret key\'iniz ve WordPress widget\'ı' },
     kullanicilar:{ title: 'Kullanıcılar', sub: 'Kullanıcı yönetimi (sadece admin)' },
     profil:     { title: 'Profilim',      sub: 'Şifre değişikliği ve hesap ayarları' },
@@ -635,6 +895,7 @@
     if (id === 'widget') widgetSayfaInit();
     if (id === 'kullanicilar') kullanicilarYukle();
     if (id === 'profil') profilYukle();
+    if (id === 'whatsapp') waSayfaInit();
   }
 
   // --- DRAG DROP ---
@@ -864,7 +1125,14 @@
   }
 
   // --- AYARLAR MODAL ---
-  async function ayarlarAc() {
+  function ayarTabGec(tab) {
+    document.getElementById('tab-netgsm').classList.toggle('tab-aktif', tab === 'netgsm');
+    document.getElementById('tab-whatsapp').classList.toggle('tab-aktif', tab === 'whatsapp');
+    document.getElementById('ayar-icerik-netgsm').style.display = tab === 'netgsm' ? 'block' : 'none';
+    document.getElementById('ayar-icerik-whatsapp').style.display = tab === 'whatsapp' ? 'block' : 'none';
+  }
+
+  async function ayarlarAc(varsayilanTab) {
     document.getElementById('ayarlar-hata').style.display = 'none';
     document.getElementById('ayarlar-basari').style.display = 'none';
     try {
@@ -877,6 +1145,18 @@
         document.getElementById('cfg-appname').value = data.config.appname || '';
       }
     } catch {}
+    // WhatsApp config yükle
+    try {
+      const r2 = await fetch('/admin/api/whatsapp/config', { credentials: 'include' });
+      const d2 = await r2.json();
+      if (d2.basarili) {
+        document.getElementById('wa-cfg-slug').value = d2.config.slug || '';
+        document.getElementById('wa-cfg-token').value = '';
+        document.getElementById('wa-cfg-business-phone').value = d2.config.businessPhone || '';
+        document.getElementById('wa-cfg-base-url').value = d2.config.baseUrl || 'https://app.monochat.ai';
+      }
+    } catch {}
+    ayarTabGec(varsayilanTab === 'whatsapp' ? 'whatsapp' : 'netgsm');
     document.getElementById('ayarlar-modal').classList.add('acik');
   }
 
@@ -1085,6 +1365,501 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const win = window.open('', '_blank');
     win.document.write(html);
     win.document.close();
+  }
+
+  // --- WHATSAPP ---
+  let waTemplateList = [], waSeciliTemplate = null;
+  let waSecilenBagisciIds = new Set();
+  let waBagisciSayfa = 1, waBagisciAramaTimer;
+  let waJobPollTimer = null;
+
+  async function waSayfaInit() {
+    await waConfigOzet();
+    await waTemplatesYukle();
+    waBagisciYukle(1);
+    waAktifJobYukle();
+    if (waJobPollTimer) clearInterval(waJobPollTimer);
+    waJobPollTimer = setInterval(waAktifJobYukle, 3000);
+  }
+
+  async function waConfigOzet() {
+    try {
+      const r = await fetch('/admin/api/whatsapp/config', { credentials: 'include' });
+      const d = await r.json();
+      const el = document.getElementById('wa-config-ozet');
+      if (!d.basarili) { el.innerHTML = '<div class="empty">Yüklenemedi.</div>'; return; }
+      const c = d.config || {};
+      const tamam = c.slug && c.businessPhone && c.apiToken;
+      el.innerHTML = `
+        <div style="font-size:0.85rem;line-height:2">
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Slug</span><span>${c.slug || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Business Phone</span><span class="mono">${c.businessPhone || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Base URL</span><span style="font-size:0.78rem">${esc(c.baseUrl || '—')}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Token</span><span>${c.apiToken ? '••••••••' : '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+        </div>
+        <div style="margin-top:12px">
+          <span class="badge" style="background:${tamam ? '#dcfce7' : '#fef2f2'};color:${tamam ? '#166534' : '#dc2626'}">${tamam ? '✓ Yapılandırıldı' : '⚠ Eksik ayar'}</span>
+        </div>`;
+    } catch {}
+  }
+
+  async function whatsappCfgKaydet() {
+    const btn = document.getElementById('wa-cfg-kaydet-btn');
+    const hata = document.getElementById('wa-cfg-hata');
+    const basari = document.getElementById('wa-cfg-basari');
+    hata.style.display = 'none'; basari.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Kaydediliyor...';
+    try {
+      const res = await fetch('/admin/api/whatsapp/config', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: document.getElementById('wa-cfg-slug').value,
+          apiToken: document.getElementById('wa-cfg-token').value,
+          businessPhone: document.getElementById('wa-cfg-business-phone').value,
+          baseUrl: document.getElementById('wa-cfg-base-url').value,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) { basari.textContent = 'Ayarlar kaydedildi.'; basari.style.display = 'block'; waConfigOzet(); }
+      else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'WhatsApp Kaydet'; }
+  }
+
+  async function waTemplatesYukle() {
+    try {
+      const r = await fetch('/admin/api/whatsapp/templates', { credentials: 'include' });
+      const d = await r.json();
+      if (!d.basarili) return;
+      waTemplateList = d.veri;
+      const el = document.getElementById('wa-template-listesi');
+      if (waTemplateList.length === 0) {
+        el.innerHTML = '<div class="empty" style="padding:20px">Henüz template yok. + Yeni Template ile ekle.</div>';
+      } else {
+        el.innerHTML = '<div style="display:grid;gap:10px">' + waTemplateList.map(t => `
+          <div class="wa-template-card ${waSeciliTemplate?.id === t.id ? 'aktif' : ''}" onclick="waTemplateSec(${t.id})">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-weight:600;color:#111827">${esc(t.ad)}</div>
+                <div style="font-size:0.78rem;color:#9ca3af">${esc(t.dil_kodu)} · ${waBodyVarSayisi(t.components)} body var${waHeaderVar(t.components) ? ' · header' : ''}${waFooterVar(t.components) ? ' · footer' : ''}</div>
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); waTemplateModalAc(${t.id})">Düzenle</button>
+            </div>
+          </div>
+        `).join('') + '</div>';
+      }
+    } catch {}
+  }
+
+  function waBodyVarSayisi(comps) {
+    if (!Array.isArray(comps)) return 0;
+    const b = comps.find(c => c.type === 'BODY');
+    return b?.variables?.length || 0;
+  }
+  function waHeaderVar(comps) { return Array.isArray(comps) && comps.some(c => c.type === 'HEADER'); }
+  function waFooterVar(comps) { return Array.isArray(comps) && comps.some(c => c.type === 'FOOTER'); }
+
+  function waTemplateSec(id) {
+    waSeciliTemplate = waTemplateList.find(t => t.id === id);
+    waTemplatesYukle();
+    waFormGuncelle();
+    document.getElementById('wa-form-card').style.display = 'block';
+    document.getElementById('wa-bagisci-card').style.display = 'block';
+    document.getElementById('wa-gonder-card').style.display = 'block';
+  }
+
+  function waFormGuncelle() {
+    if (!waSeciliTemplate) return;
+    document.getElementById('wa-secili-template-ad').textContent = waSeciliTemplate.ad + ' (' + waSeciliTemplate.dil_kodu + ')';
+    const comps = waSeciliTemplate.components || [];
+
+    // Header
+    const header = comps.find(c => c.type === 'HEADER');
+    if (header) {
+      document.getElementById('wa-header-grup').style.display = 'block';
+      document.getElementById('wa-header-label').textContent = 'Header (' + (header.format || 'TEXT') + ')';
+      const fmt = (header.format || 'TEXT').toUpperCase();
+      document.getElementById('wa-header-input').placeholder =
+        fmt === 'IMAGE' ? 'https://.../resim.jpg' :
+        fmt === 'VIDEO' ? 'https://.../video.mp4' :
+        fmt === 'DOCUMENT' ? 'https://.../belge.pdf' :
+        'Header metni';
+    } else {
+      document.getElementById('wa-header-grup').style.display = 'none';
+    }
+
+    // Body
+    const body = comps.find(c => c.type === 'BODY');
+    const bodyCount = body?.variables?.length || 0;
+    const bodyEl = document.getElementById('wa-body-vars');
+    if (bodyCount === 0) {
+      bodyEl.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem">Bu template\'in body değişkeni yok.</div>';
+    } else {
+      bodyEl.innerHTML = Array.from({length: bodyCount}, (_, i) => `
+        <div class="wa-var-row">
+          <span class="wa-var-label">Body {{${i+1}}}</span>
+          <input type="text" class="form-control" id="wa-body-${i}" placeholder="Örn: Merhaba {BAGISCI_ADI_SOYADI}" oninput="waOnizleme()">
+        </div>
+      `).join('');
+    }
+
+    // Footer
+    const footer = comps.find(c => c.type === 'FOOTER');
+    if (footer) {
+      document.getElementById('wa-footer-grup').style.display = 'block';
+      document.getElementById('wa-footer-text').textContent = footer.text || '(boş)';
+    } else {
+      document.getElementById('wa-footer-grup').style.display = 'none';
+    }
+
+    waOnizleme();
+  }
+
+  function waOnizleme() {
+    if (!waSeciliTemplate) return;
+    const ornek = { ad_soyad: 'Ahmet Yılmaz', uniq_kod: 'AB12CD34' };
+    const doldur = (s) => String(s || '').replace(/\{BAGISCI_ADI_SOYADI\}/g, ornek.ad_soyad).replace(/\{UNIQ_KOD\}/g, ornek.uniq_kod);
+
+    const parcalar = [];
+    const header = document.getElementById('wa-header-input').value;
+    if (header && document.getElementById('wa-header-grup').style.display !== 'none') {
+      parcalar.push('[Header] ' + doldur(header));
+    }
+    const comps = waSeciliTemplate.components || [];
+    const body = comps.find(c => c.type === 'BODY');
+    if (body && body.text) {
+      let metin = body.text;
+      const varSayisi = body.variables?.length || 0;
+      for (let i = 0; i < varSayisi; i++) {
+        const v = doldur(document.getElementById('wa-body-' + i)?.value || `{${i+1}}`);
+        metin = metin.replace(new RegExp('\\{\\{' + (i+1) + '\\}\\}', 'g'), v);
+      }
+      parcalar.push(metin);
+    } else if (body) {
+      // Body text yoksa sadece variable'ları göster
+      const varSayisi = body.variables?.length || 0;
+      const vals = [];
+      for (let i = 0; i < varSayisi; i++) {
+        vals.push(doldur(document.getElementById('wa-body-' + i)?.value || `{${i+1}}`));
+      }
+      if (vals.length) parcalar.push(vals.join(' | '));
+    }
+    const footer = comps.find(c => c.type === 'FOOTER');
+    if (footer && footer.text) parcalar.push('— ' + footer.text);
+    document.getElementById('wa-onizleme').textContent = parcalar.join('\n') || 'Şablon doldurun...';
+  }
+
+  // TEMPLATE EDITOR MODAL
+  function waTemplateYeniModal() { waTemplateModalAc(null); }
+  function waTemplateDuzenle() { if (waSeciliTemplate) waTemplateModalAc(waSeciliTemplate.id); }
+
+  let waEditingTemplateId = null;
+  function waTemplateModalAc(id) {
+    waEditingTemplateId = id;
+    document.getElementById('wa-template-hata').style.display = 'none';
+    document.getElementById('wa-tmpl-json-collapse').classList.remove('acik');
+
+    if (id) {
+      const t = waTemplateList.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById('wa-template-modal-baslik').textContent = 'Template Düzenle';
+      document.getElementById('wa-tmpl-ad').value = t.ad;
+      document.getElementById('wa-tmpl-dil').value = t.dil_kodu;
+      const comps = t.components || [];
+      const h = comps.find(c => c.type === 'HEADER');
+      const b = comps.find(c => c.type === 'BODY');
+      const f = comps.find(c => c.type === 'FOOTER');
+      document.getElementById('wa-tmpl-header-var').value = h ? 'evet' : 'hayir';
+      document.getElementById('wa-tmpl-header-format').value = h?.format || 'TEXT';
+      document.getElementById('wa-tmpl-body-count').value = b?.variables?.length || 0;
+      document.getElementById('wa-tmpl-footer-var').value = f ? 'evet' : 'hayir';
+      document.getElementById('wa-tmpl-footer-text').value = f?.text || '';
+      document.getElementById('wa-tmpl-sil-btn').style.display = 'inline-flex';
+    } else {
+      document.getElementById('wa-template-modal-baslik').textContent = '+ Yeni Template';
+      document.getElementById('wa-tmpl-ad').value = '';
+      document.getElementById('wa-tmpl-dil').value = 'tr';
+      document.getElementById('wa-tmpl-header-var').value = 'hayir';
+      document.getElementById('wa-tmpl-header-format').value = 'TEXT';
+      document.getElementById('wa-tmpl-body-count').value = 0;
+      document.getElementById('wa-tmpl-footer-var').value = 'hayir';
+      document.getElementById('wa-tmpl-footer-text').value = '';
+      document.getElementById('wa-tmpl-sil-btn').style.display = 'none';
+    }
+    waTemplateFormGuncelle();
+    document.getElementById('wa-template-modal').classList.add('acik');
+  }
+
+  function waTemplateComponentsOlustur() {
+    const headerVar = document.getElementById('wa-tmpl-header-var').value === 'evet';
+    const headerFormat = document.getElementById('wa-tmpl-header-format').value;
+    const bodyCount = Math.max(0, Math.min(9, parseInt(document.getElementById('wa-tmpl-body-count').value) || 0));
+    const footerVar = document.getElementById('wa-tmpl-footer-var').value === 'evet';
+    const footerText = document.getElementById('wa-tmpl-footer-text').value;
+
+    const comps = [];
+    if (headerVar) {
+      comps.push({
+        type: 'HEADER',
+        format: headerFormat,
+        variables: [{ type: headerFormat, exampleValue: '' }],
+      });
+    }
+    const bodyComp = { type: 'BODY', text: '', variables: [] };
+    for (let i = 0; i < bodyCount; i++) bodyComp.variables.push({ type: 'TEXT', exampleValue: `[${i+1}]` });
+    if (bodyCount > 0 && !bodyComp.text) {
+      bodyComp.text = Array.from({length: bodyCount}, (_, i) => `{{${i+1}}}`).join(' ');
+    }
+    comps.push(bodyComp);
+    if (footerVar) comps.push({ type: 'FOOTER', text: footerText });
+
+    return { name: document.getElementById('wa-tmpl-ad').value, languageCode: document.getElementById('wa-tmpl-dil').value, components: comps };
+  }
+
+  function waTemplateFormGuncelle() {
+    document.getElementById('wa-tmpl-header-format-grup').style.display =
+      document.getElementById('wa-tmpl-header-var').value === 'evet' ? 'block' : 'none';
+    document.getElementById('wa-tmpl-footer-text-grup').style.display =
+      document.getElementById('wa-tmpl-footer-var').value === 'evet' ? 'block' : 'none';
+
+    const obj = waTemplateComponentsOlustur();
+    document.getElementById('wa-tmpl-json').value = JSON.stringify(obj, null, 2);
+    document.getElementById('wa-tmpl-json').classList.remove('invalid');
+    document.getElementById('wa-tmpl-json-hata').style.display = 'none';
+  }
+
+  function waTemplateJsonDegisti() {
+    const json = document.getElementById('wa-tmpl-json').value;
+    try {
+      const obj = JSON.parse(json);
+      document.getElementById('wa-tmpl-json').classList.remove('invalid');
+      document.getElementById('wa-tmpl-json-hata').style.display = 'none';
+      // Form alanlarını JSON'a göre güncelle
+      if (obj.name !== undefined) document.getElementById('wa-tmpl-ad').value = obj.name;
+      if (obj.languageCode) document.getElementById('wa-tmpl-dil').value = obj.languageCode;
+      const comps = obj.components || [];
+      const h = comps.find(c => c.type === 'HEADER');
+      const b = comps.find(c => c.type === 'BODY');
+      const f = comps.find(c => c.type === 'FOOTER');
+      document.getElementById('wa-tmpl-header-var').value = h ? 'evet' : 'hayir';
+      if (h) document.getElementById('wa-tmpl-header-format').value = h.format || 'TEXT';
+      document.getElementById('wa-tmpl-body-count').value = b?.variables?.length || 0;
+      document.getElementById('wa-tmpl-footer-var').value = f ? 'evet' : 'hayir';
+      if (f) document.getElementById('wa-tmpl-footer-text').value = f.text || '';
+      document.getElementById('wa-tmpl-header-format-grup').style.display = h ? 'block' : 'none';
+      document.getElementById('wa-tmpl-footer-text-grup').style.display = f ? 'block' : 'none';
+    } catch (e) {
+      document.getElementById('wa-tmpl-json').classList.add('invalid');
+      document.getElementById('wa-tmpl-json-hata').style.display = 'block';
+    }
+  }
+
+  async function waTemplateKaydet() {
+    const btn = document.getElementById('wa-tmpl-kaydet-btn');
+    const hata = document.getElementById('wa-template-hata');
+    hata.style.display = 'none';
+
+    let payload;
+    try {
+      const json = document.getElementById('wa-tmpl-json').value;
+      payload = JSON.parse(json);
+    } catch {
+      hata.textContent = 'JSON formatı geçersiz.'; hata.style.display = 'block'; return;
+    }
+    if (!payload.name) {
+      hata.textContent = 'Template adı zorunlu.'; hata.style.display = 'block'; return;
+    }
+
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Kaydediliyor...';
+    try {
+      const url = waEditingTemplateId ? `/admin/api/whatsapp/templates/${waEditingTemplateId}` : '/admin/api/whatsapp/templates';
+      const method = waEditingTemplateId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ad: payload.name, dil_kodu: payload.languageCode, components: payload.components }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('wa-template-modal').classList.remove('acik');
+        await waTemplatesYukle();
+        // Düzenlenen veya yeni oluşturulan template'i seç
+        const yeni = waTemplateList.find(t => t.id === (data.template?.id || waEditingTemplateId));
+        if (yeni) waTemplateSec(yeni.id);
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Kaydet'; }
+  }
+
+  async function waTemplateSil() {
+    if (!waEditingTemplateId) return;
+    if (!confirm('Template silinecek. Emin misiniz?')) return;
+    try {
+      await fetch('/admin/api/whatsapp/templates/' + waEditingTemplateId, { method: 'DELETE', credentials: 'include' });
+      document.getElementById('wa-template-modal').classList.remove('acik');
+      if (waSeciliTemplate?.id === waEditingTemplateId) {
+        waSeciliTemplate = null;
+        document.getElementById('wa-form-card').style.display = 'none';
+        document.getElementById('wa-bagisci-card').style.display = 'none';
+        document.getElementById('wa-gonder-card').style.display = 'none';
+      }
+      waTemplatesYukle();
+    } catch {}
+  }
+
+  // BAĞIŞÇI LİSTESİ
+  function waBagisciAramaGecikme() { clearTimeout(waBagisciAramaTimer); waBagisciAramaTimer = setTimeout(() => waBagisciYukle(1), 350); }
+
+  async function waBagisciYukle(sayfa) {
+    waBagisciSayfa = sayfa;
+    const arama = document.getElementById('wa-bagisci-arama').value;
+    const limit = document.getElementById('wa-bagisci-limit').value;
+    const tbody = document.getElementById('wa-bagisci-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    try {
+      const params = new URLSearchParams({ sayfa, limit });
+      if (arama) params.set('arama', arama);
+      const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili || data.veri.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">Kayıt yok.</td></tr>`;
+        document.getElementById('wa-secim-bilgi').textContent = `Toplam: ${data.toplam || 0}`;
+        renderPagination('wa-bagisci', data, sayfa);
+        return;
+      }
+      document.getElementById('wa-secim-bilgi').textContent = `Toplam: ${data.toplam}`;
+      const tumIds = data.veri.map(b => b.id);
+      const hepsi = tumIds.every(id => waSecilenBagisciIds.has(id));
+      document.getElementById('wa-hepsini-sec').checked = hepsi && tumIds.length > 0;
+      tbody.innerHTML = data.veri.map(b => `<tr>
+        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${waSecilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="waTekSecim(${b.id}, this.checked)"></td>
+        <td>${b.id}</td>
+        <td>${esc(b.ad_soyad)}</td>
+        <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}${!b.ulke_kodu_var_mi ? ' <span class="badge badge-uyari" title="Ülke kodu eksik">!</span>' : ''}</td>
+        <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
+      </tr>`).join('');
+      renderPagination('wa-bagisci', data, sayfa);
+      waSecilenSayiGuncelle();
+    } catch { tbody.innerHTML = `<tr><td colspan="5" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  function waTekSecim(id, secili) {
+    if (secili) waSecilenBagisciIds.add(id); else waSecilenBagisciIds.delete(id);
+    waSecilenSayiGuncelle();
+  }
+  function waHepsiniSec(secili) {
+    document.querySelectorAll('#wa-bagisci-tbody input[type="checkbox"]').forEach(cb => {
+      const id = parseInt(cb.dataset.id);
+      cb.checked = secili;
+      if (secili) waSecilenBagisciIds.add(id); else waSecilenBagisciIds.delete(id);
+    });
+    waSecilenSayiGuncelle();
+  }
+  function waSecilenSayiGuncelle() { document.getElementById('wa-secilen-sayi').textContent = waSecilenBagisciIds.size; }
+
+  // GÖNDERİM
+  async function waGonderBaslat() {
+    const hata = document.getElementById('wa-gonder-hata');
+    hata.style.display = 'none';
+
+    if (!waSeciliTemplate) { hata.textContent = 'Önce bir template seçin.'; hata.style.display = 'block'; return; }
+    if (waSecilenBagisciIds.size === 0) { hata.textContent = 'En az bir bağışçı seçin.'; hata.style.display = 'block'; return; }
+
+    const bodyCount = waBodyVarSayisi(waSeciliTemplate.components);
+    const bodyInputs = [];
+    for (let i = 0; i < bodyCount; i++) bodyInputs.push(document.getElementById('wa-body-' + i).value);
+
+    const headerInput = document.getElementById('wa-header-grup').style.display !== 'none'
+      ? document.getElementById('wa-header-input').value
+      : null;
+
+    const aralik = parseInt(document.getElementById('wa-aralik').value) || 600;
+    if (aralik < 500) { hata.textContent = 'Aralık en az 500ms olmalı.'; hata.style.display = 'block'; return; }
+
+    if (!confirm(`${waSecilenBagisciIds.size} bağışçıya WhatsApp gönderilecek. Onaylıyor musunuz?`)) return;
+
+    const btn = document.getElementById('wa-gonder-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Başlatılıyor...';
+    try {
+      const res = await fetch('/admin/api/whatsapp/jobs', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: waSeciliTemplate.id,
+          header_input: headerInput,
+          body_inputs: bodyInputs,
+          bagisci_ids: [...waSecilenBagisciIds],
+          aralik_ms: aralik,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        waSecilenBagisciIds.clear();
+        waSecilenSayiGuncelle();
+        waBagisciYukle(1);
+        waAktifJobYukle();
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.innerHTML = '🚀 WhatsApp Gönderimini Başlat'; }
+  }
+
+  async function waAktifJobYukle() {
+    try {
+      const r = await fetch('/admin/api/whatsapp/jobs/aktif', { credentials: 'include' });
+      const d = await r.json();
+      const card = document.getElementById('wa-aktif-job-card');
+      const body = document.getElementById('wa-aktif-job-body');
+      if (!d.basarili || !d.job) {
+        card.style.display = 'none';
+        return;
+      }
+      const j = d.job;
+      const yuzde = j.toplam > 0 ? Math.round((j.islenmis / j.toplam) * 100) : 0;
+      const aktif = ['queued','running','paused'].includes(j.durum);
+      const durumMetin = {
+        queued: 'Sırada', running: 'Çalışıyor', paused: 'Duraklatıldı',
+        completed: 'Tamamlandı', cancelled: 'İptal', failed: 'Hata'
+      }[j.durum] || j.durum;
+
+      let butonlar = '';
+      if (j.durum === 'running') {
+        butonlar += `<button class="btn btn-outline btn-sm" onclick="waJobDurdur(${j.id})">⏸️ Duraklat</button>`;
+      } else if (j.durum === 'paused') {
+        butonlar += `<button class="btn btn-primary btn-sm" onclick="waJobDevam(${j.id})">▶️ Devam</button>`;
+      }
+      if (aktif) {
+        butonlar += `<button class="btn btn-outline btn-sm" onclick="waJobIptal(${j.id})" style="color:#dc2626;border-color:#fecaca">✗ İptal</button>`;
+      }
+
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;font-size:0.95rem">#${j.id} · ${esc(j.template_ad)}</div>
+            <div style="font-size:0.78rem;color:#9ca3af">Aralık: ${j.aralik_ms}ms · ${tarihFormat(j.created_at)}</div>
+          </div>
+          <span class="durum-badge durum-${j.durum}">${durumMetin}</span>
+        </div>
+        <div style="font-size:0.85rem;color:#6b7280;margin-bottom:6px;display:flex;justify-content:space-between">
+          <span>${j.islenmis} / ${j.toplam}</span>
+          <span>%${yuzde}</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${yuzde}%"></div></div>
+        <div style="display:flex;gap:10px;font-size:0.78rem;margin-top:8px;flex-wrap:wrap">
+          <span style="color:#16a34a">✓ ${j.basarili} başarılı</span>
+          <span style="color:#dc2626">✗ ${j.basarisiz} hata</span>
+          <span style="color:#9ca3af">— ${j.atlanan} atlandı</span>
+        </div>
+        ${butonlar ? `<div style="display:flex;gap:8px;margin-top:14px">${butonlar}</div>` : ''}
+        ${j.hata_mesaji ? `<div class="alert alert-error" style="margin-top:10px;font-size:0.82rem">${esc(j.hata_mesaji)}</div>` : ''}
+      `;
+      card.style.display = 'block';
+    } catch {}
+  }
+
+  async function waJobDurdur(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/durdur`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); }
+  async function waJobDevam(id) { await fetch(`/admin/api/whatsapp/jobs/${id}/devam`, { method: 'POST', credentials: 'include' }); waAktifJobYukle(); }
+  async function waJobIptal(id) {
+    if (!confirm('Gönderim iptal edilecek. Bekleyen mesajlar gönderilmez.')) return;
+    await fetch(`/admin/api/whatsapp/jobs/${id}/iptal`, { method: 'POST', credentials: 'include' });
+    waAktifJobYukle();
   }
 
   // --- KULLANICILAR (admin only) ---

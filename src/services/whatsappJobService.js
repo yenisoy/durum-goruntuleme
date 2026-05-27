@@ -214,25 +214,20 @@ async function jobIsle(kullaniciId, jobId) {
 
       const bodyParams = (bodyInputs || []).map(b => wa.placeholderDoldur(b, bagisciData));
 
-      // BUTTONS: her variable'lı buton için ayrı parameter
-      // WhatsApp Cloud API formatı: type=button (lowercase), sub_type=url/quick_reply,
-      // index=string, parameters=[{type:'text', text:'value'}]
-      const buttonComponents = [];
+      // BUTTONS: Monochat nested yapısı bekliyor — template ile aynı: { type: 'BUTTONS', buttons: [{ parameters: [...] }] }
+      // Her buton kendi parametrelerini içerir, butonun variable'ı yoksa parameters boş
+      let buttonComponents = null;
       if (Array.isArray(templateSnapshot)) {
         const btnComp = templateSnapshot.find(c => c.type === 'BUTTONS');
-        if (btnComp && Array.isArray(btnComp.buttons)) {
-          btnComp.buttons.forEach((btn, idx) => {
-            const subType = (btn.type || 'URL').toLowerCase();
+        if (btnComp && Array.isArray(btnComp.buttons) && btnComp.buttons.some(b => b.has_variable)) {
+          const buttonsPayload = btnComp.buttons.map((btn, idx) => {
             if (btn.has_variable && buttonInputs[idx] !== undefined && buttonInputs[idx] !== null) {
               const val = wa.placeholderDoldur(buttonInputs[idx], bagisciData);
-              buttonComponents.push({
-                type: 'button',
-                sub_type: subType,
-                index: String(idx),
-                parameters: [{ type: 'text', text: String(val) }],
-              });
+              return { parameters: [String(val)] };
             }
+            return { parameters: [] };
           });
+          buttonComponents = [{ type: 'BUTTONS', buttons: buttonsPayload }];
         }
       }
 

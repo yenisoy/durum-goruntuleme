@@ -63,6 +63,7 @@ router.get('/whatsapp/config', girisKontrol, waCtrl.configGetir);
 router.post('/whatsapp/config', girisKontrol, waCtrl.configGuncelle);
 
 router.get('/whatsapp/templates', girisKontrol, waCtrl.templatesListele);
+router.post('/whatsapp/templates/senkronize', girisKontrol, waCtrl.templatesSenkronize);
 router.post('/whatsapp/templates', girisKontrol, waCtrl.templateOlustur);
 router.put('/whatsapp/templates/:id', girisKontrol, waCtrl.templateGuncelle);
 router.delete('/whatsapp/templates/:id', girisKontrol, waCtrl.templateSil);

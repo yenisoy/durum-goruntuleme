@@ -38,6 +38,58 @@ async function templatesListele(req, res) {
   }
 }
 
+async function templatesSenkronize(req, res) {
+  try {
+    const config = await wa.configOku(req.session.kullaniciId);
+    if (!config || !config.slug || !config.apiToken || !config.businessPhone) {
+      return res.status(400).json({ basarili: false, mesaj: 'Önce Monochat ayarlarını tamamlayın.' });
+    }
+
+    const liste = await wa.templateleriCek(config);
+    const sonuc = { toplam: liste.length, eklenen: 0, guncellenen: 0, atlanan: 0, hata: 0, detaylar: [] };
+
+    for (const t of liste) {
+      try {
+        // Sadece onaylı (APPROVED) olanları al, REJECTED olanları atla
+        if (t.status !== 'APPROVED') {
+          sonuc.atlanan++;
+          sonuc.detaylar.push({ ad: t.name, durum: 'atlandı', sebep: `Status: ${t.status}` });
+          continue;
+        }
+        const components = wa.monochatComponentsToInternal(t.components);
+        const mevcut = await wat.listele(req.session.kullaniciId).then(arr => arr.find(x => x.ad === t.name));
+        if (mevcut) {
+          await wat.guncelle(req.session.kullaniciId, mevcut.id, {
+            ad: t.name,
+            dil_kodu: t.languageCode,
+            kategori: t.category || 'UTILITY',
+            components,
+          });
+          sonuc.guncellenen++;
+          sonuc.detaylar.push({ ad: t.name, durum: 'güncellendi' });
+        } else {
+          await wat.olustur(req.session.kullaniciId, {
+            ad: t.name,
+            dil_kodu: t.languageCode,
+            kategori: t.category || 'UTILITY',
+            components,
+          });
+          sonuc.eklenen++;
+          sonuc.detaylar.push({ ad: t.name, durum: 'eklendi' });
+        }
+      } catch (e) {
+        sonuc.hata++;
+        sonuc.detaylar.push({ ad: t.name, durum: 'hata', sebep: e.message });
+      }
+    }
+
+    res.json({ basarili: true, sonuc });
+  } catch (err) {
+    const detay = wa.hataDetayCikar(err);
+    res.status(500).json({ basarili: false, mesaj: detay });
+  }
+}
+
 async function templateOlustur(req, res) {
   try {
     const t = await wat.olustur(req.session.kullaniciId, req.body);
@@ -134,6 +186,6 @@ async function jobIptal(req, res) {
 
 module.exports = {
   configGetir, configGuncelle,
-  templatesListele, templateOlustur, templateGuncelle, templateSil,
+  templatesListele, templatesSenkronize, templateOlustur, templateGuncelle, templateSil,
   jobOlusturBaslat, jobDurum, jobAktif, jobListele, jobDurdur, jobDevam, jobIptal,
 };

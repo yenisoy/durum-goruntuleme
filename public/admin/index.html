@@ -686,8 +686,12 @@
               <div class="card">
                 <div class="card-header">
                   <span class="card-title">Template Seç</span>
-                  <button class="btn btn-primary btn-sm" onclick="waTemplateYeniModal()">+ Yeni Template</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-outline btn-sm" id="wa-senkronize-btn" onclick="waTemplateleriSenkronize()" title="Monochat'ten template'leri senkronize et">🔄 Senkronize Et</button>
+                    <button class="btn btn-primary btn-sm" onclick="waTemplateYeniModal()">+ Yeni</button>
+                  </div>
                 </div>
+                <div id="wa-senkronize-mesaj" style="display:none"></div>
                 <div id="wa-template-listesi"></div>
               </div>
 
@@ -1856,6 +1860,40 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     finally { btn.disabled = false; btn.textContent = 'WhatsApp Kaydet'; }
   }
 
+  async function waTemplateleriSenkronize() {
+    const btn = document.getElementById('wa-senkronize-btn');
+    const mesajEl = document.getElementById('wa-senkronize-mesaj');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Çekiliyor...';
+    mesajEl.style.display = 'none';
+    try {
+      const res = await fetch('/admin/api/whatsapp/templates/senkronize', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        const s = data.sonuc;
+        mesajEl.innerHTML = `
+          <div class="alert alert-success" style="margin-bottom:12px;font-size:0.85rem">
+            <strong>✓ Senkronizasyon tamamlandı.</strong><br>
+            Toplam: ${s.toplam} · ➕ Eklenen: ${s.eklenen} · 🔄 Güncellenen: ${s.guncellenen} · ⊘ Atlanan: ${s.atlanan} · ✗ Hata: ${s.hata}
+          </div>`;
+        mesajEl.style.display = 'block';
+        await waTemplatesYukle();
+        // Seçili template güncellenmişse formu yeniden çiz
+        if (waSeciliTemplate) {
+          const yeni = waTemplateList.find(t => t.ad === waSeciliTemplate.ad);
+          if (yeni) waTemplateSec(yeni.id);
+        }
+      } else {
+        mesajEl.innerHTML = `<div class="alert alert-error" style="font-size:0.85rem">${esc(data.mesaj)}</div>`;
+        mesajEl.style.display = 'block';
+      }
+    } catch (e) {
+      mesajEl.innerHTML = `<div class="alert alert-error" style="font-size:0.85rem">Bağlantı hatası.</div>`;
+      mesajEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.innerHTML = '🔄 Senkronize Et';
+    }
+  }
+
   async function waTemplatesYukle() {
     try {
       const r = await fetch('/admin/api/whatsapp/templates', { credentials: 'include' });
@@ -1965,14 +2003,18 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       btnEl.innerHTML = buttons.buttons.map((b, i) => {
         if (!b.has_variable) return '';
         const tip = (b.type || 'URL').toUpperCase();
+        // URL template'i {{1}} parçasına göre böl — değişkenin önündeki sabit prefix'i göster
+        let prefix = '', suffix = '';
+        if (b.url_template) {
+          const match = b.url_template.match(/^(.*?)\{\{1\}\}(.*)$/);
+          if (match) { prefix = match[1]; suffix = match[2]; }
+        }
         return `
-          <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:#fafbff;border-radius:8px">
-            <div class="wa-var-row">
-              <span class="wa-var-label">${tip} #${i+1}</span>
-              <input type="text" class="form-control" id="wa-btn-${i}" placeholder="${tip === 'URL' ? 'Sadece URL\'in değişken kısmı (ör: AB12CD34)' : 'Buton değişkeni'}" oninput="waOnizleme()">
-            </div>
-            ${b.url_template ? `<div style="margin-left:118px;font-size:0.78rem;color:#9ca3af">URL: <code>${esc(b.url_template)}</code></div>` : ''}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:118px">
+          <div style="display:flex;flex-direction:column;gap:6px;padding:10px;background:#fafbff;border-radius:8px">
+            <div style="font-size:0.78rem;color:#6b7280;font-weight:600">${tip} Buton #${i+1}${b.text ? ` — "${esc(b.text)}"` : ''}</div>
+            ${prefix ? `<div style="font-size:0.78rem;color:#9ca3af;font-family:monospace;background:#f1f5f9;padding:6px 10px;border-radius:6px;word-break:break-all">${esc(prefix)}<strong style="color:#2563eb">[değişken]</strong>${esc(suffix)}</div>` : ''}
+            <input type="text" class="form-control" id="wa-btn-${i}" placeholder="Sadece değişken kısmı (örn: ${esc(b.variable_ornek || '?kod=AB12CD34')})" oninput="waOnizleme()">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{BAGISCI_ADI_SOYADI}')">+ Ad Soyad</button>
               <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{UNIQ_KOD}')">+ Uniq Kod</button>
               <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{CRM_KOD}')">+ CRM Kod</button>

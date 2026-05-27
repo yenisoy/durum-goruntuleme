@@ -91,6 +91,69 @@ function hataDetayCikar(err) {
   return err.message || 'Hata detayı alınamadı';
 }
 
+/**
+ * Monochat'ten template listesini çeker
+ */
+async function templateleriCek(config) {
+  if (!config.slug || !config.apiToken || !config.businessPhone) {
+    throw new Error('Monochat yapılandırması eksik.');
+  }
+  const url = `${config.baseUrl.replace(/\/$/, '')}/api/${config.slug}/custom-functions/template-app/api/template/list.js`;
+  const res = await axios.post(
+    url,
+    { phoneNumber: config.businessPhone },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiToken}`,
+      },
+      timeout: 30000,
+    }
+  );
+  return res.data?.result?.templateMessages || [];
+}
+
+/**
+ * Monochat template structure'ını bizim internal formatımıza çevirir
+ */
+function monochatComponentsToInternal(components) {
+  if (!Array.isArray(components)) return [];
+  return components.map(c => {
+    if (c.type === 'HEADER') {
+      return {
+        type: 'HEADER',
+        format: c.format || 'TEXT',
+        text: c.text || '',
+        variables: c.variables || [],
+      };
+    }
+    if (c.type === 'BODY') {
+      return {
+        type: 'BODY',
+        text: c.text || '',
+        variables: c.variables || [],
+      };
+    }
+    if (c.type === 'FOOTER') {
+      return { type: 'FOOTER', text: c.text || '' };
+    }
+    if (c.type === 'BUTTONS' && Array.isArray(c.buttons)) {
+      return {
+        type: 'BUTTONS',
+        buttons: c.buttons.map(b => ({
+          type: b.type || 'URL',
+          text: b.text || '',
+          url_template: b.url || '',           // Monochat'teki tam URL (örn: "https://x.com/{{1}}")
+          url_ornek: b.sampleText || '',       // Monochat'teki örnek URL
+          has_variable: Array.isArray(b.variables) && b.variables.length > 0,
+          variable_ornek: b.variables?.[0]?.exampleValue || '',
+        })),
+      };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
 async function templateSend(config, { templateName, languageCode, customerPhone, headerComponent, bodyParams, buttonComponents }) {
   if (!config.slug || !config.apiToken || !config.businessPhone) {
     throw new Error('Monochat yapılandırması eksik.');
@@ -101,8 +164,9 @@ async function templateSend(config, { templateName, languageCode, customerPhone,
   if (bodyParams && bodyParams.length > 0) {
     variables.push({ type: 'BODY', parameters: bodyParams });
   }
+  // buttonComponents zaten { type:'BUTTONS', buttons:[...] } yapısında geliyor
   if (Array.isArray(buttonComponents)) {
-    for (const btn of buttonComponents) variables.push(btn);
+    for (const item of buttonComponents) variables.push(item);
   }
 
   const url = `${config.baseUrl.replace(/\/$/, '')}/api/${config.slug}/custom-functions/template-app/api/template/send.js`;
@@ -137,6 +201,8 @@ module.exports = {
   configOku,
   configKaydet,
   templateSend,
+  templateleriCek,
+  monochatComponentsToInternal,
   telefonWhatsappFormat,
   placeholderDoldur,
   hataDetayCikar,

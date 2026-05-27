@@ -232,7 +232,7 @@ async function jobIsle(kullaniciId, jobId) {
       }
 
       try {
-        await wa.templateSend(config, {
+        const sonuc = await wa.templateSend(config, {
           templateName: job.template_ad,
           languageCode: job.template_dil || 'tr',
           customerPhone,
@@ -242,8 +242,12 @@ async function jobIsle(kullaniciId, jobId) {
         });
 
         await pool.query(
-          `UPDATE whatsapp_job_items SET durum = 'sent', processed_at = NOW() WHERE id = $1`,
-          [item.id]
+          `UPDATE whatsapp_job_items SET
+             durum = 'sent', processed_at = NOW(),
+             request_url = $1, request_payload = $2,
+             response_status = $3, response_data = $4
+           WHERE id = $5`,
+          [sonuc.url, sonuc.payload, sonuc.status, sonuc.data, item.id]
         );
         await pool.query(
           "UPDATE whatsapp_jobs SET islenmis = islenmis + 1, basarili = basarili + 1, updated_at = NOW() WHERE id = $1",
@@ -251,9 +255,23 @@ async function jobIsle(kullaniciId, jobId) {
         );
       } catch (err) {
         const sebep = wa.hataDetayCikar(err);
+        const responseData = err.response?.data
+          ? (typeof err.response.data === 'object' ? err.response.data : { raw: String(err.response.data) })
+          : { error: err.message || 'Bilinmeyen hata' };
         await pool.query(
-          `UPDATE whatsapp_job_items SET durum = 'failed', sebep = $1, processed_at = NOW() WHERE id = $2`,
-          [sebep, item.id]
+          `UPDATE whatsapp_job_items SET
+             durum = 'failed', sebep = $1, processed_at = NOW(),
+             request_url = $2, request_payload = $3,
+             response_status = $4, response_data = $5
+           WHERE id = $6`,
+          [
+            sebep,
+            err.gondrilenUrl || null,
+            err.gondrilenPayload || null,
+            err.response?.status || null,
+            responseData,
+            item.id,
+          ]
         );
         await pool.query(
           "UPDATE whatsapp_jobs SET islenmis = islenmis + 1, basarisiz = basarisiz + 1, updated_at = NOW() WHERE id = $1",

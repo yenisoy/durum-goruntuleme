@@ -73,6 +73,7 @@ router.get('/whatsapp/jobs/aktif', girisKontrol, waCtrl.jobAktif);
 router.post('/whatsapp/jobs', girisKontrol, waCtrl.jobOlusturBaslat);
 router.post('/whatsapp/payload-onizleme', girisKontrol, waCtrl.onizlemePayload);
 router.get('/whatsapp/jobs/:id', girisKontrol, waCtrl.jobDurum);
+router.get('/whatsapp/jobs/:id/items/:itemId/log', girisKontrol, waCtrl.jobItemLog);
 router.post('/whatsapp/jobs/:id/durdur', girisKontrol, waCtrl.jobDurdur);
 router.post('/whatsapp/jobs/:id/devam', girisKontrol, waCtrl.jobDevam);
 router.post('/whatsapp/jobs/:id/iptal', girisKontrol, waCtrl.jobIptal);

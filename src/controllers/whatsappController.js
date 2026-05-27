@@ -204,6 +204,24 @@ async function jobDurum(req, res) {
   }
 }
 
+async function jobItemLog(req, res) {
+  const pool = require('../config/database');
+  try {
+    const jobId = parseInt(req.params.id);
+    const itemId = parseInt(req.params.itemId);
+    const r = await pool.query(
+      `SELECT i.* FROM whatsapp_job_items i
+       JOIN whatsapp_jobs j ON j.id = i.job_id
+       WHERE j.kullanici_id = $1 AND j.id = $2 AND i.id = $3`,
+      [req.session.kullaniciId, jobId, itemId]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ basarili: false, mesaj: 'Kayıt bulunamadı.' });
+    res.json({ basarili: true, item: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
 async function jobAktif(req, res) {
   try {
     const job = await waj.aktifJobBul(req.session.kullaniciId);
@@ -252,5 +270,5 @@ module.exports = {
   configGetir, configGuncelle,
   templatesListele, templatesSenkronize, templateOlustur, templateGuncelle, templateSil,
   jobOlusturBaslat, jobDurum, jobAktif, jobListele, jobDurdur, jobDevam, jobIptal,
-  onizlemePayload,
+  onizlemePayload, jobItemLog,
 };

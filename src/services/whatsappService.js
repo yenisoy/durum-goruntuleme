@@ -187,12 +187,16 @@ async function templateSend(config, { templateName, languageCode, customerPhone,
       },
       timeout: 30000,
     });
-    return res.data;
+    return {
+      data: res.data,
+      status: res.status,
+      payload,
+      url,
+    };
   } catch (err) {
-    // Hata mesajına gönderdiğimiz payload'ı da ekle (debug için)
-    if (err.response) {
-      err.gondrilenPayload = payload;
-    }
+    // Hata durumunda payload ve URL'i de hataya iliştir
+    err.gondrilenPayload = payload;
+    err.gondrilenUrl = url;
     throw err;
   }
 }

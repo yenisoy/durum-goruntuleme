@@ -75,6 +75,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'whatsapp_templates' AND column_name = 'kategori') THEN
     ALTER TABLE whatsapp_templates ADD COLUMN kategori VARCHAR(20) DEFAULT 'UTILITY';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'whatsapp_job_items' AND column_name = 'request_url') THEN
+    ALTER TABLE whatsapp_job_items ADD COLUMN request_url TEXT;
+    ALTER TABLE whatsapp_job_items ADD COLUMN request_payload JSONB;
+    ALTER TABLE whatsapp_job_items ADD COLUMN response_status INTEGER;
+    ALTER TABLE whatsapp_job_items ADD COLUMN response_data JSONB;
+  END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_crm_kod ON bagiscilar(crm_kod);

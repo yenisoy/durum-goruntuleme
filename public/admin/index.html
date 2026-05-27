@@ -880,10 +880,21 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
             </div>
             <div class="tablo-wrapper" style="max-height:450px;overflow-y:auto">
               <table>
-                <thead><tr><th>#</th><th>Bağışçı</th><th>Telefon</th><th>Durum</th><th>Detay</th></tr></thead>
-                <tbody id="wa-job-detay-items"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
+                <thead><tr><th>#</th><th>Bağışçı</th><th>Telefon</th><th>Durum</th><th>Detay</th><th>Log</th></tr></thead>
+                <tbody id="wa-job-detay-items"><tr><td colspan="6" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- ITEM LOG MODAL (request/response) -->
+        <div class="modal-overlay" id="wa-item-log-modal">
+          <div class="modal" style="max-width:900px;max-height:90vh;overflow:auto">
+            <div class="modal-header">
+              <span class="modal-title" id="wa-item-log-baslik">İstek / Cevap Detayı</span>
+              <button class="modal-kapat" onclick="document.getElementById('wa-item-log-modal').classList.remove('acik')">×</button>
+            </div>
+            <div id="wa-item-log-body">Yükleniyor...</div>
           </div>
         </div>
 
@@ -2685,7 +2696,7 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const items = durum ? waJobDetayItems.filter(i => i.durum === durum) : waJobDetayItems;
     const tbody = document.getElementById('wa-job-detay-items');
     if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="empty">Kayıt yok.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">Kayıt yok.</td></tr>`;
       return;
     }
     tbody.innerHTML = items.map(i => {
@@ -2696,14 +2707,72 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
         pending: { ikon: '⏱', renk: '#1d4ed8' },
       }[i.durum] || { ikon: '?', renk: '#9ca3af' };
       const durumLabel = { sent: 'Gönderildi', failed: 'Hata', skipped: 'Atlandı', pending: 'Bekliyor' }[i.durum] || i.durum;
+      // Log butonu sadece gönderim denenenler için
+      const logBtn = (i.durum === 'sent' || i.durum === 'failed')
+        ? `<button class="btn btn-outline btn-sm" onclick="waItemLogAc(${waJobDetayId}, ${i.id}, '${esc(i.bagisci_ad)}')" title="İstek/Cevap detayı">📋</button>`
+        : '<span style="color:#d1d5db">—</span>';
       return `<tr>
         <td>${i.sirano}</td>
         <td><strong>${esc(i.bagisci_ad)}</strong></td>
         <td class="mono" style="font-size:0.82rem">${esc(i.telefon) || '—'}</td>
         <td><span style="color:${ikonCss.renk};font-weight:600">${ikonCss.ikon} ${durumLabel}</span></td>
         <td style="color:${i.durum === 'failed' ? '#dc2626' : '#6b7280'};font-size:0.82rem">${esc(i.sebep || '—')}</td>
+        <td>${logBtn}</td>
       </tr>`;
     }).join('');
+  }
+
+  async function waItemLogAc(jobId, itemId, bagisciAd) {
+    document.getElementById('wa-item-log-modal').classList.add('acik');
+    document.getElementById('wa-item-log-baslik').textContent = `📋 ${bagisciAd} — İstek/Cevap`;
+    document.getElementById('wa-item-log-body').innerHTML = '<div class="empty"><span class="spinner" style="color:#d1d5db"></span></div>';
+    try {
+      const res = await fetch(`/admin/api/whatsapp/jobs/${jobId}/items/${itemId}/log`, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.basarili) {
+        document.getElementById('wa-item-log-body').innerHTML = `<div class="alert alert-error">${esc(data.mesaj)}</div>`;
+        return;
+      }
+      const i = data.item;
+      const reqStr = i.request_payload ? JSON.stringify(i.request_payload, null, 2) : '(istek kaydedilmedi)';
+      const resStr = i.response_data ? JSON.stringify(i.response_data, null, 2) : '(cevap kaydedilmedi)';
+      const durumRengi = i.durum === 'sent' ? '#16a34a' : i.durum === 'failed' ? '#dc2626' : '#9ca3af';
+      const durumLabel = { sent: 'Gönderildi', failed: 'Hata', skipped: 'Atlandı', pending: 'Bekliyor' }[i.durum] || i.durum;
+      document.getElementById('wa-item-log-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:0.85rem;margin-bottom:14px">
+          <span style="color:#9ca3af">Bağışçı</span><span><strong>${esc(i.bagisci_ad)}</strong></span>
+          <span style="color:#9ca3af">Telefon</span><span class="mono">${esc(i.telefon) || '—'}</span>
+          <span style="color:#9ca3af">Durum</span><span style="color:${durumRengi};font-weight:600">${durumLabel}</span>
+          <span style="color:#9ca3af">İşlem Zamanı</span><span>${i.processed_at ? tarihFormat(i.processed_at) : '—'}</span>
+          <span style="color:#9ca3af">HTTP Status</span><span>${i.response_status || '—'}</span>
+          ${i.sebep ? `<span style="color:#9ca3af">Hata Sebebi</span><span style="color:#dc2626">${esc(i.sebep)}</span>` : ''}
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            <span>📤 Gönderilen İstek (URL: <code style="font-size:0.75rem">${esc(i.request_url || '?')}</code>)</span>
+            <button class="btn btn-outline btn-sm" onclick="waLogKopyala('request', ${itemId})">📋 Kopyala</button>
+          </label>
+          <pre id="wa-log-req-${itemId}" style="background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.78rem;line-height:1.5;max-height:300px;overflow:auto;white-space:pre-wrap">${esc(reqStr)}</pre>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            <span>📥 Monochat'ten Gelen Cevap</span>
+            <button class="btn btn-outline btn-sm" onclick="waLogKopyala('response', ${itemId})">📋 Kopyala</button>
+          </label>
+          <pre id="wa-log-res-${itemId}" style="background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.78rem;line-height:1.5;max-height:300px;overflow:auto;white-space:pre-wrap">${esc(resStr)}</pre>
+        </div>
+      `;
+    } catch (e) {
+      document.getElementById('wa-item-log-body').innerHTML = `<div class="alert alert-error">Bağlantı hatası.</div>`;
+    }
+  }
+
+  async function waLogKopyala(tip, itemId) {
+    const el = document.getElementById(`wa-log-${tip === 'request' ? 'req' : 'res'}-${itemId}`);
+    if (!el) return;
+    try { await navigator.clipboard.writeText(el.textContent); alert('Kopyalandı.'); } catch {}
   }
 
   // Modal dışına tıklayınca kapat

@@ -24,7 +24,12 @@ async function bagiscilarListele(req, res) {
 
     const [satirlar, toplam] = await Promise.all([
       pool.query(
-        `SELECT b.*, COUNT(bl.id)::int AS bagis_sayisi
+        `SELECT b.*,
+           COUNT(DISTINCT bl.id)::int AS bagis_sayisi,
+           (SELECT COUNT(*)::int FROM whatsapp_job_items wji
+              JOIN whatsapp_jobs wj ON wj.id = wji.job_id
+              WHERE wji.bagisci_id = b.id AND wji.durum = 'sent' AND wj.kullanici_id = b.kullanici_id
+           ) AS wa_sayisi
          FROM bagiscilar b
          LEFT JOIN bagislar bl ON bl.bagisci_id = b.id
          ${where}

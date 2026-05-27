@@ -470,9 +470,13 @@
               <table>
                 <thead><tr>
                   <th class="cb-cell"><input type="checkbox" id="bagiscilar-tum-cb" onchange="bagiscilarHepsiniSec(this.checked)"></th>
-                  <th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Sorgu</th><th>Tarih</th><th></th>
+                  <th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th>
+                  <th title="Toplam bağış">🎁</th>
+                  <th title="Sorgu sayısı">🔍</th>
+                  <th title="WhatsApp gönderim sayısı">📱</th>
+                  <th>Tarih</th><th></th>
                 </tr></thead>
-                <tbody id="bagiscilar-tbody"><tr><td colspan="11" class="empty">Yükleniyor...</td></tr></tbody>
+                <tbody id="bagiscilar-tbody"><tr><td colspan="12" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
             <div class="pagination" id="bagiscilar-pagination"></div>
@@ -759,8 +763,13 @@
                 </div>
                 <div class="tablo-wrapper">
                   <table>
-                    <thead><tr><th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th></tr></thead>
-                    <tbody id="wa-bagisci-tbody"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
+                    <thead><tr>
+                      <th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th>
+                      <th title="Bu bağışçıya ait toplam bağış sayısı">🎁 Bağış</th>
+                      <th title="Bu bağışçının uniq kodla yaptığı sorgu sayısı">🔍 Sorgu</th>
+                      <th title="Bu bağışçıya başarıyla gönderilen WhatsApp sayısı">📱 WA</th>
+                    </tr></thead>
+                    <tbody id="wa-bagisci-tbody"><tr><td colspan="8" class="empty">Yükleniyor...</td></tr></tbody>
                   </table>
                 </div>
                 <div class="pagination" id="wa-bagisci-pagination"></div>
@@ -1031,8 +1040,8 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
                 </div>
                 <div class="tablo-wrapper">
                   <table>
-                    <thead><tr><th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th><th>Bağış</th></tr></thead>
-                    <tbody id="sms-bagisci-tbody"><tr><td colspan="6" class="empty">Yükleniyor...</td></tr></tbody>
+                    <thead><tr><th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th><th title="Bağış">🎁</th><th title="Sorgu">🔍</th><th title="WhatsApp">📱</th></tr></thead>
+                    <tbody id="sms-bagisci-tbody"><tr><td colspan="8" class="empty">Yükleniyor...</td></tr></tbody>
                   </table>
                 </div>
                 <div class="pagination" id="sms-bagisci-pagination"></div>
@@ -1249,14 +1258,18 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
       if (crmFiltre) params.set('crm_filtre', crmFiltre);
       const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
       const data = await res.json();
-      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Yüklenemedi.</td></tr>`; return; }
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="12" class="empty">Yüklenemedi.</td></tr>`; return; }
       document.getElementById('bagiscilar-toplam').textContent = `Toplam: ${data.toplam} bağışçı`;
-      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagiscilar', data, sayfa); return; }
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="12" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagiscilar', data, sayfa); return; }
       tbody.innerHTML = data.veri.map(b => {
         const ulkeBadge = b.ulke_kodu
           ? `<span class="badge" style="background:#dcfce7;color:#166534">${esc(b.ulke_kodu)}</span>`
           : (b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>');
         const sorguSayisi = b.sorgu_sayisi || 0;
+        const waSayisi = b.wa_sayisi || 0;
+        const sayiHucre = (n, renk) => n > 0
+          ? `<span class="badge" style="background:${renk[0]};color:${renk[1]};min-width:24px;display:inline-block;text-align:center">${n}</span>`
+          : '<span style="color:#d1d5db">—</span>';
         return `<tr>
           <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${bagiscilarSeciliSet.has(b.id) ? 'checked' : ''} onchange="bagisciTekSecim(${b.id}, this.checked)"></td>
           <td>${b.id}</td><td>${esc(b.ad_soyad)}</td>
@@ -1264,15 +1277,16 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
           <td>${ulkeBadge}</td>
           <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:6px;letter-spacing:2px">${b.uniq_kod}</span></td>
           <td>${b.crm_kod ? `<span class="mono" style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px">${esc(b.crm_kod)}</span>` : '<span style="color:#d1d5db">—</span>'}</td>
-          <td style="text-align:center">${b.bagis_sayisi}</td>
-          <td style="text-align:center;font-weight:${sorguSayisi > 0 ? '600' : '400'};color:${sorguSayisi > 0 ? '#16213e' : '#d1d5db'}">${sorguSayisi}</td>
+          <td style="text-align:center">${sayiHucre(b.bagis_sayisi, ['#f1f5f9', '#374151'])}</td>
+          <td style="text-align:center">${sayiHucre(sorguSayisi, ['#fef9c3', '#a16207'])}</td>
+          <td style="text-align:center">${sayiHucre(waSayisi, ['#dcfce7', '#166534'])}</td>
           <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
           <td><button class="btn btn-outline btn-sm" onclick='bagisciDuzenleAc(${JSON.stringify(b)})'>✏️</button></td>
         </tr>`;
       }).join('');
       bagisciSecimGuncelle();
       renderPagination('bagiscilar', data, sayfa);
-    } catch { tbody.innerHTML = `<tr><td colspan="11" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="12" class="empty">Bağlantı hatası.</td></tr>`; }
   }
 
   // --- BAĞIŞÇI/BAĞIŞ TOPLU SEÇİM ---
@@ -1515,31 +1529,38 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
     const arama = document.getElementById('sms-bagisci-arama').value;
     const limit = document.getElementById('sms-bagisci-limit').value;
     const tbody = document.getElementById('sms-bagisci-tbody');
-    tbody.innerHTML = `<tr><td colspan="6" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
     try {
       const params = new URLSearchParams({ sayfa, limit });
       if (arama) params.set('arama', arama);
       const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
       const data = await res.json();
-      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Yüklenemedi.</td></tr>`; return; }
+      if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Yüklenemedi.</td></tr>`; return; }
       document.getElementById('sms-secim-bilgi').textContent = `Toplam: ${data.toplam} bağışçı`;
-      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('sms-bagisci', data, sayfa); return; }
+      if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('sms-bagisci', data, sayfa); return; }
 
       const tumIds = data.veri.map(b => b.id);
       const hepsiSecili = tumIds.every(id => secilenBagisciIds.has(id));
       document.getElementById('hepsini-sec').checked = hepsiSecili && tumIds.length > 0;
 
-      tbody.innerHTML = data.veri.map(b => `<tr>
-        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${secilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="tekSecim(${b.id}, this.checked)"></td>
-        <td>${b.id}</td>
-        <td>${esc(b.ad_soyad)}</td>
-        <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
-        <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
-        <td style="text-align:center">${b.bagis_sayisi}</td>
-      </tr>`).join('');
+      tbody.innerHTML = data.veri.map(b => {
+        const sayiHucre = (n, renk) => n > 0
+          ? `<span class="badge" style="background:${renk[0]};color:${renk[1]};min-width:24px;display:inline-block;text-align:center">${n}</span>`
+          : '<span style="color:#d1d5db">—</span>';
+        return `<tr>
+          <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${secilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="tekSecim(${b.id}, this.checked)"></td>
+          <td>${b.id}</td>
+          <td>${esc(b.ad_soyad)}</td>
+          <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
+          <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
+          <td style="text-align:center">${sayiHucre(b.bagis_sayisi, ['#f1f5f9', '#374151'])}</td>
+          <td style="text-align:center">${sayiHucre(b.sorgu_sayisi || 0, ['#fef9c3', '#a16207'])}</td>
+          <td style="text-align:center">${sayiHucre(b.wa_sayisi || 0, ['#dcfce7', '#166534'])}</td>
+        </tr>`;
+      }).join('');
       renderPagination('sms-bagisci', data, sayfa);
       secilenSayiGuncelle();
-    } catch { tbody.innerHTML = `<tr><td colspan="6" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="8" class="empty">Bağlantı hatası.</td></tr>`; }
   }
 
   function tekSecim(id, secili) {
@@ -2377,14 +2398,14 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const arama = document.getElementById('wa-bagisci-arama').value;
     const limit = document.getElementById('wa-bagisci-limit').value;
     const tbody = document.getElementById('wa-bagisci-tbody');
-    tbody.innerHTML = `<tr><td colspan="5" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
     try {
       const params = new URLSearchParams({ sayfa, limit });
       if (arama) params.set('arama', arama);
       const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
       const data = await res.json();
       if (!data.basarili || data.veri.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="empty">Kayıt yok.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="empty">Kayıt yok.</td></tr>`;
         document.getElementById('wa-secim-bilgi').textContent = `Toplam: ${data.toplam || 0}`;
         renderPagination('wa-bagisci', data, sayfa);
         return;
@@ -2393,16 +2414,27 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       const tumIds = data.veri.map(b => b.id);
       const hepsi = tumIds.every(id => waSecilenBagisciIds.has(id));
       document.getElementById('wa-hepsini-sec').checked = hepsi && tumIds.length > 0;
-      tbody.innerHTML = data.veri.map(b => `<tr>
-        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${waSecilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="waTekSecim(${b.id}, this.checked)"></td>
-        <td>${b.id}</td>
-        <td>${esc(b.ad_soyad)}</td>
-        <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}${!b.ulke_kodu_var_mi ? ' <span class="badge badge-uyari" title="Ülke kodu eksik">!</span>' : ''}</td>
-        <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
-      </tr>`).join('');
+      tbody.innerHTML = data.veri.map(b => {
+        const sorgu = b.sorgu_sayisi || 0;
+        const wa = b.wa_sayisi || 0;
+        const bagis = b.bagis_sayisi || 0;
+        const sayiBadge = (n, renk) => n > 0
+          ? `<span class="badge" style="background:${renk[0]};color:${renk[1]};min-width:24px;display:inline-block;text-align:center">${n}</span>`
+          : '<span style="color:#d1d5db">—</span>';
+        return `<tr>
+          <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${waSecilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="waTekSecim(${b.id}, this.checked)"></td>
+          <td>${b.id}</td>
+          <td>${esc(b.ad_soyad)}</td>
+          <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}${!b.ulke_kodu_var_mi ? ' <span class="badge badge-uyari" title="Ülke kodu eksik">!</span>' : ''}</td>
+          <td><span class="mono" style="background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:0.82rem;letter-spacing:1.5px">${b.uniq_kod}</span></td>
+          <td style="text-align:center">${sayiBadge(bagis, ['#f1f5f9', '#374151'])}</td>
+          <td style="text-align:center">${sayiBadge(sorgu, ['#fef9c3', '#a16207'])}</td>
+          <td style="text-align:center">${sayiBadge(wa, ['#dcfce7', '#166534'])}</td>
+        </tr>`;
+      }).join('');
       renderPagination('wa-bagisci', data, sayfa);
       waSecilenSayiGuncelle();
-    } catch { tbody.innerHTML = `<tr><td colspan="5" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="8" class="empty">Bağlantı hatası.</td></tr>`; }
   }
 
   function waTekSecim(id, secili) {

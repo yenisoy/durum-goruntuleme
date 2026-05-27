@@ -37,11 +37,16 @@ async function uniqKodSorgula(req, res) {
       [bagisci.id]
     ).catch(() => {});
 
+    // Hem bağışçı olarak hem referans olarak geçtiği bağışlar
     const bagislarRes = await pool.query(
       `SELECT id, excel_id, ad_soyad, kimin_adina, ikinci_ref AS referans,
-              durum, bagisci_id, referans_id, created_at, updated_at
+              durum, bagisci_id, referans_id, created_at, updated_at,
+              CASE
+                WHEN bagisci_id = $2 THEN 'bagisci'
+                WHEN referans_id = $2 THEN 'referans'
+              END AS rol
        FROM bagislar
-       WHERE kullanici_id = $1 AND bagisci_id = $2
+       WHERE kullanici_id = $1 AND (bagisci_id = $2 OR referans_id = $2)
        ORDER BY created_at ASC`,
       [kullanici.id, bagisci.id]
     );

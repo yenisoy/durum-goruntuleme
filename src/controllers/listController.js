@@ -25,15 +25,22 @@ async function bagiscilarListele(req, res) {
     const [satirlar, toplam] = await Promise.all([
       pool.query(
         `SELECT b.*,
-           COUNT(DISTINCT bl.id)::int AS bagis_sayisi,
+           (SELECT COUNT(*)::int FROM bagislar
+              WHERE (bagisci_id = b.id OR referans_id = b.id)
+                AND kullanici_id = b.kullanici_id
+           ) AS bagis_sayisi,
+           (SELECT COUNT(*)::int FROM bagislar
+              WHERE bagisci_id = b.id AND kullanici_id = b.kullanici_id
+           ) AS bagisci_bagis_sayisi,
+           (SELECT COUNT(*)::int FROM bagislar
+              WHERE referans_id = b.id AND kullanici_id = b.kullanici_id
+           ) AS referans_bagis_sayisi,
            (SELECT COUNT(*)::int FROM whatsapp_job_items wji
               JOIN whatsapp_jobs wj ON wj.id = wji.job_id
               WHERE wji.bagisci_id = b.id AND wji.durum = 'sent' AND wj.kullanici_id = b.kullanici_id
            ) AS wa_sayisi
          FROM bagiscilar b
-         LEFT JOIN bagislar bl ON bl.bagisci_id = b.id
          ${where}
-         GROUP BY b.id
          ORDER BY bagis_sayisi DESC, b.id ASC
          LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
         listParams

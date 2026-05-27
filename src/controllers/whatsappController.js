@@ -128,6 +128,70 @@ async function jobOlusturBaslat(req, res) {
   }
 }
 
+/**
+ * Test/Önizleme: seçilen bir bağışçı için bir SMS payload'unu gerçekten göndermeden hazırlar
+ */
+async function onizlemePayload(req, res) {
+  const pool = require('../config/database');
+  const { template_id, header_input, body_inputs, button_inputs, bagisci_id } = req.body;
+  try {
+    const config = await wa.configOku(req.session.kullaniciId);
+    const template = await wat.bul(req.session.kullaniciId, parseInt(template_id));
+    if (!template) return res.status(404).json({ basarili: false, mesaj: 'Template bulunamadı.' });
+
+    let bagisci = { ad_soyad: 'Örnek Bağışçı', uniq_kod: 'AB12CD34', crm_kod: 'OO34', telefon: '905555555555', ulke_kodu: '90' };
+    if (bagisci_id) {
+      const r = await pool.query(
+        'SELECT id, ad_soyad, uniq_kod, crm_kod, telefon, ulke_kodu FROM bagiscilar WHERE id = $1 AND kullanici_id = $2',
+        [bagisci_id, req.session.kullaniciId]
+      );
+      if (r.rowCount > 0) bagisci = r.rows[0];
+    }
+
+    const bodyParams = (body_inputs || []).map(b => wa.placeholderDoldur(b, bagisci));
+    const components = template.components || [];
+
+    let headerComponent = null;
+    if (header_input) {
+      const h = components.find(c => c.type === 'HEADER');
+      if (h) headerComponent = { type: 'HEADER', parameters: [wa.placeholderDoldur(header_input, bagisci)] };
+    }
+
+    let buttonComponents = null;
+    const btnComp = components.find(c => c.type === 'BUTTONS');
+    if (btnComp && Array.isArray(btnComp.buttons) && btnComp.buttons.some(b => b.has_variable)) {
+      const buttonsPayload = btnComp.buttons.map((btn, idx) => {
+        if (btn.has_variable && button_inputs && button_inputs[idx] !== undefined && button_inputs[idx] !== null) {
+          return { parameters: [String(wa.placeholderDoldur(button_inputs[idx], bagisci))] };
+        }
+        return { parameters: [] };
+      });
+      buttonComponents = [{ type: 'BUTTONS', buttons: buttonsPayload }];
+    }
+
+    const variables = [];
+    if (headerComponent) variables.push(headerComponent);
+    if (bodyParams.length > 0) variables.push({ type: 'BODY', parameters: bodyParams });
+    if (buttonComponents) variables.push(...buttonComponents);
+
+    const url = config && config.slug && config.baseUrl
+      ? `${config.baseUrl.replace(/\/$/, '')}/api/${config.slug}/custom-functions/template-app/api/template/send.js`
+      : 'https://app.monochat.ai/api/{slug}/custom-functions/template-app/api/template/send.js';
+
+    const payload = {
+      phoneNumber: config?.businessPhone || '{businessPhone}',
+      templateMessageName: template.ad,
+      languageCode: template.dil_kodu || 'tr',
+      customerPhoneNumber: bagisci.telefon || '{customerPhoneNumber}',
+      variables,
+    };
+
+    res.json({ basarili: true, url, payload, bagisci: { ad_soyad: bagisci.ad_soyad, uniq_kod: bagisci.uniq_kod, crm_kod: bagisci.crm_kod } });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
 async function jobDurum(req, res) {
   try {
     const job = await waj.jobBul(req.session.kullaniciId, parseInt(req.params.id));
@@ -188,4 +252,5 @@ module.exports = {
   configGetir, configGuncelle,
   templatesListele, templatesSenkronize, templateOlustur, templateGuncelle, templateSil,
   jobOlusturBaslat, jobDurum, jobAktif, jobListele, jobDurdur, jobDevam, jobIptal,
+  onizlemePayload,
 };

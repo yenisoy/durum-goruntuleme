@@ -71,6 +71,7 @@ router.delete('/whatsapp/templates/:id', girisKontrol, waCtrl.templateSil);
 router.get('/whatsapp/jobs', girisKontrol, waCtrl.jobListele);
 router.get('/whatsapp/jobs/aktif', girisKontrol, waCtrl.jobAktif);
 router.post('/whatsapp/jobs', girisKontrol, waCtrl.jobOlusturBaslat);
+router.post('/whatsapp/payload-onizleme', girisKontrol, waCtrl.onizlemePayload);
 router.get('/whatsapp/jobs/:id', girisKontrol, waCtrl.jobDurum);
 router.post('/whatsapp/jobs/:id/durdur', girisKontrol, waCtrl.jobDurdur);
 router.post('/whatsapp/jobs/:id/devam', girisKontrol, waCtrl.jobDevam);

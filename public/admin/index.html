@@ -786,9 +786,12 @@
                     Varsayılan izinli kodlar: <strong>31, 32, 33, 34, 41, 49, 90</strong>. Diğer ülke kodları varsa bu kutucuk seçilince Monochat'e denenir; başarısız olursa hata olarak işaretlenir.
                   </small>
                 </div>
-                <button class="btn btn-success" id="wa-gonder-btn" onclick="waGonderBaslat()" style="width:100%">
-                  🚀 WhatsApp Gönderimini Başlat
-                </button>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-outline" id="wa-onizle-btn" onclick="waPayloadOnizle()" style="flex:0 0 auto">📋 İstek Önizle</button>
+                  <button class="btn btn-success" id="wa-gonder-btn" onclick="waGonderBaslat()" style="flex:1">
+                    🚀 WhatsApp Gönderimini Başlat
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -822,6 +825,41 @@
               </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- PAYLOAD ÖNİZLE MODAL -->
+        <div class="modal-overlay" id="wa-payload-modal">
+          <div class="modal" style="max-width:800px;max-height:90vh;overflow:auto">
+            <div class="modal-header">
+              <span class="modal-title">📋 Monochat'e Gönderilecek İstek</span>
+              <button class="modal-kapat" onclick="document.getElementById('wa-payload-modal').classList.remove('acik')">×</button>
+            </div>
+            <div class="alert alert-info" style="font-size:0.85rem">
+              <strong>ℹ️ Bilgi:</strong> Aşağıdaki istek seçilen ilk bağışçı için <strong>gerçek değerlerle</strong> hazırlandı. Bu istek <em>henüz gönderilmedi</em>, sadece önizleme. Monochat destek ekibine bu örneği gönderebilirsin.
+            </div>
+
+            <div class="form-group">
+              <label>POST URL</label>
+              <pre id="wa-payload-url" style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;font-size:0.82rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all"></pre>
+            </div>
+
+            <div class="form-group">
+              <label>Headers</label>
+              <pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;font-size:0.82rem;line-height:1.6">Content-Type: application/json
+Authorization: Bearer &lt;API_TOKEN&gt;</pre>
+            </div>
+
+            <div class="form-group">
+              <label>Request Body (örnek bağışçı: <span id="wa-payload-bagisci" style="font-weight:600"></span>)</label>
+              <pre id="wa-payload-body" style="background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.82rem;line-height:1.5;max-height:400px;overflow:auto;white-space:pre-wrap"></pre>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline" onclick="waPayloadKopyala()">📋 Body'yi Kopyala</button>
+              <button class="btn btn-outline" onclick="waCurlKopyala()">📋 cURL Komutu Kopyala</button>
+            </div>
+            <div id="wa-payload-mesaj" style="margin-top:10px"></div>
           </div>
         </div>
 
@@ -2369,6 +2407,83 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     waSecilenSayiGuncelle();
   }
   function waSecilenSayiGuncelle() { document.getElementById('wa-secilen-sayi').textContent = waSecilenBagisciIds.size; }
+
+  // PAYLOAD ÖNİZLEME (debug için)
+  let waSonPayload = null;
+  let waSonUrl = '';
+
+  async function waPayloadOnizle() {
+    if (!waSeciliTemplate) { alert('Önce bir template seçin.'); return; }
+
+    const bodyCount = waBodyVarSayisi(waSeciliTemplate.components);
+    const bodyInputs = [];
+    for (let i = 0; i < bodyCount; i++) bodyInputs.push(document.getElementById('wa-body-' + i)?.value || '');
+    const buttonInputs = [];
+    const btnComp = (waSeciliTemplate.components || []).find(c => c.type === 'BUTTONS');
+    if (btnComp && Array.isArray(btnComp.buttons)) {
+      btnComp.buttons.forEach((b, i) => {
+        const el = document.getElementById('wa-btn-' + i);
+        buttonInputs.push(el ? el.value : '');
+      });
+    }
+    const headerInput = document.getElementById('wa-header-grup').style.display !== 'none'
+      ? document.getElementById('wa-header-input').value : null;
+
+    // Seçili bağışçılardan ilkini al, yoksa örnek kullanılır
+    const ilkBagisciId = [...waSecilenBagisciIds][0] || null;
+
+    const btn = document.getElementById('wa-onizle-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Hazırlanıyor...';
+    try {
+      const res = await fetch('/admin/api/whatsapp/payload-onizleme', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: waSeciliTemplate.id,
+          header_input: headerInput,
+          body_inputs: bodyInputs,
+          button_inputs: buttonInputs,
+          bagisci_id: ilkBagisciId,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        waSonPayload = data.payload;
+        waSonUrl = data.url;
+        document.getElementById('wa-payload-url').textContent = 'POST ' + data.url;
+        document.getElementById('wa-payload-body').textContent = JSON.stringify(data.payload, null, 2);
+        document.getElementById('wa-payload-bagisci').textContent = data.bagisci.ad_soyad + ' / ' + (data.bagisci.uniq_kod || '-') + (data.bagisci.crm_kod ? ' / CRM: ' + data.bagisci.crm_kod : '');
+        document.getElementById('wa-payload-mesaj').innerHTML = '';
+        document.getElementById('wa-payload-modal').classList.add('acik');
+      } else {
+        alert(data.mesaj || 'Önizleme oluşturulamadı.');
+      }
+    } catch (e) { alert('Bağlantı hatası.'); }
+    finally { btn.disabled = false; btn.innerHTML = '📋 İstek Önizle'; }
+  }
+
+  async function waPayloadKopyala() {
+    if (!waSonPayload) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(waSonPayload, null, 2));
+      const el = document.getElementById('wa-payload-mesaj');
+      el.innerHTML = '<div class="alert alert-success" style="font-size:0.82rem">✓ JSON body panoya kopyalandı.</div>';
+      setTimeout(() => { el.innerHTML = ''; }, 2500);
+    } catch {}
+  }
+
+  async function waCurlKopyala() {
+    if (!waSonPayload || !waSonUrl) return;
+    const curl = `curl -X POST '${waSonUrl}' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer <API_TOKEN>' \\
+  -d '${JSON.stringify(waSonPayload).replace(/'/g, "'\\''")}'`;
+    try {
+      await navigator.clipboard.writeText(curl);
+      const el = document.getElementById('wa-payload-mesaj');
+      el.innerHTML = '<div class="alert alert-success" style="font-size:0.82rem">✓ cURL komutu kopyalandı. API_TOKEN\'ı kendi değerinle değiştir.</div>';
+      setTimeout(() => { el.innerHTML = ''; }, 3500);
+    } catch {}
+  }
 
   // GÖNDERİM
   async function waGonderBaslat() {

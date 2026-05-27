@@ -470,9 +470,9 @@
               <table>
                 <thead><tr>
                   <th class="cb-cell"><input type="checkbox" id="bagiscilar-tum-cb" onchange="bagiscilarHepsiniSec(this.checked)"></th>
-                  <th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Tarih</th><th></th>
+                  <th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Sorgu</th><th>Tarih</th><th></th>
                 </tr></thead>
-                <tbody id="bagiscilar-tbody"><tr><td colspan="10" class="empty">Yükleniyor...</td></tr></tbody>
+                <tbody id="bagiscilar-tbody"><tr><td colspan="11" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
             <div class="pagination" id="bagiscilar-pagination"></div>
@@ -505,6 +505,21 @@
             <div class="form-group" style="margin-top:20px">
               <label style="color:#9ca3af">Uniq Kod (değiştirilemez)</label>
               <input type="text" class="form-control mono" id="bd-uniq-kod" readonly style="background:#f9fafb">
+            </div>
+
+            <div class="form-group" style="margin-top:8px;padding:14px;background:#fafbff;border:1.5px solid #e5e7eb;border-radius:10px">
+              <label style="margin-bottom:8px">Sorgu Sayacı</label>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:120px">
+                  <div style="font-size:1.6rem;font-weight:700;color:#16213e" id="bd-sorgu-sayisi">0</div>
+                  <div style="font-size:0.78rem;color:#9ca3af">Toplam sorgulama</div>
+                </div>
+                <div style="flex:1;min-width:140px">
+                  <div style="font-size:0.85rem;color:#374151" id="bd-son-sorgu">—</div>
+                  <div style="font-size:0.78rem;color:#9ca3af">Son sorgu zamanı</div>
+                </div>
+                <button class="btn btn-outline btn-sm" id="bd-sorgu-sifirla-btn" onclick="bagisciSorguSifirla()" style="color:#dc2626;border-color:#fecaca">🔄 Sıfırla</button>
+              </div>
             </div>
             <div class="modal-footer">
               <button class="btn btn-outline" onclick="bagisciSil()" style="margin-right:auto;color:#dc2626;border-color:#fecaca">🗑️ Sil</button>
@@ -1184,20 +1199,27 @@
       if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Yüklenemedi.</td></tr>`; return; }
       document.getElementById('bagiscilar-toplam').textContent = `Toplam: ${data.toplam} bağışçı`;
       if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagiscilar', data, sayfa); return; }
-      tbody.innerHTML = data.veri.map(b => `<tr>
-        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${bagiscilarSeciliSet.has(b.id) ? 'checked' : ''} onchange="bagisciTekSecim(${b.id}, this.checked)"></td>
-        <td>${b.id}</td><td>${esc(b.ad_soyad)}</td>
-        <td class="mono">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
-        <td>${b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>'}</td>
-        <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:6px;letter-spacing:2px">${b.uniq_kod}</span></td>
-        <td>${b.crm_kod ? `<span class="mono" style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px">${esc(b.crm_kod)}</span>` : '<span style="color:#d1d5db">—</span>'}</td>
-        <td style="text-align:center">${b.bagis_sayisi}</td>
-        <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
-        <td><button class="btn btn-outline btn-sm" onclick='bagisciDuzenleAc(${JSON.stringify(b)})'>✏️</button></td>
-      </tr>`).join('');
+      tbody.innerHTML = data.veri.map(b => {
+        const ulkeBadge = b.ulke_kodu
+          ? `<span class="badge" style="background:#dcfce7;color:#166534">${esc(b.ulke_kodu)}</span>`
+          : (b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>');
+        const sorguSayisi = b.sorgu_sayisi || 0;
+        return `<tr>
+          <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${bagiscilarSeciliSet.has(b.id) ? 'checked' : ''} onchange="bagisciTekSecim(${b.id}, this.checked)"></td>
+          <td>${b.id}</td><td>${esc(b.ad_soyad)}</td>
+          <td class="mono">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
+          <td>${ulkeBadge}</td>
+          <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:6px;letter-spacing:2px">${b.uniq_kod}</span></td>
+          <td>${b.crm_kod ? `<span class="mono" style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px">${esc(b.crm_kod)}</span>` : '<span style="color:#d1d5db">—</span>'}</td>
+          <td style="text-align:center">${b.bagis_sayisi}</td>
+          <td style="text-align:center;font-weight:${sorguSayisi > 0 ? '600' : '400'};color:${sorguSayisi > 0 ? '#16213e' : '#d1d5db'}">${sorguSayisi}</td>
+          <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
+          <td><button class="btn btn-outline btn-sm" onclick='bagisciDuzenleAc(${JSON.stringify(b)})'>✏️</button></td>
+        </tr>`;
+      }).join('');
       bagisciSecimGuncelle();
       renderPagination('bagiscilar', data, sayfa);
-    } catch { tbody.innerHTML = `<tr><td colspan="10" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="11" class="empty">Bağlantı hatası.</td></tr>`; }
   }
 
   // --- BAĞIŞÇI/BAĞIŞ TOPLU SEÇİM ---
@@ -1355,7 +1377,39 @@
     document.getElementById('bd-telefon').value = b.telefon || '';
     document.getElementById('bd-crm-kod').value = b.crm_kod || '';
     document.getElementById('bd-uniq-kod').value = b.uniq_kod || '';
+    const sayi = b.sorgu_sayisi || 0;
+    document.getElementById('bd-sorgu-sayisi').textContent = sayi;
+    document.getElementById('bd-son-sorgu').textContent = b.son_sorgu_at ? tarihFormat(b.son_sorgu_at) : 'Hiç sorgulanmadı';
+    document.getElementById('bd-sorgu-sifirla-btn').disabled = sayi === 0;
     document.getElementById('bagisci-duzenle-modal').classList.add('acik');
+  }
+
+  async function bagisciSorguSifirla() {
+    const id = document.getElementById('bd-id').value;
+    const sayi = parseInt(document.getElementById('bd-sorgu-sayisi').textContent) || 0;
+    if (sayi === 0) return;
+    if (!confirm(`Bu bağışçının sorgu sayacı (${sayi}) sıfırlanacak. Devam?`)) return;
+    const btn = document.getElementById('bd-sorgu-sifirla-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sıfırlanıyor...';
+    try {
+      const res = await fetch(`/admin/api/bagiscilar/${id}/sorgu-sifirla`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('bd-sorgu-sayisi').textContent = '0';
+        document.getElementById('bd-son-sorgu').textContent = 'Hiç sorgulanmadı';
+        document.getElementById('bd-basari').textContent = '✓ Sorgu sayacı sıfırlandı.';
+        document.getElementById('bd-basari').style.display = 'block';
+        bagiscilarYukle(bagiscilarSayfa);
+      } else {
+        document.getElementById('bd-hata').textContent = data.mesaj;
+        document.getElementById('bd-hata').style.display = 'block';
+      }
+    } catch {
+      document.getElementById('bd-hata').textContent = 'Bağlantı hatası.';
+      document.getElementById('bd-hata').style.display = 'block';
+    } finally {
+      btn.innerHTML = '🔄 Sıfırla';
+    }
   }
 
   async function bagisciKaydet() {

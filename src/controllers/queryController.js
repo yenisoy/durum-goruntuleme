@@ -31,6 +31,12 @@ async function uniqKodSorgula(req, res) {
     }
     const bagisci = bagisciRes.rows[0];
 
+    // Sorgu sayacını artır — sorgu başarılı sayıldı
+    pool.query(
+      'UPDATE bagiscilar SET sorgu_sayisi = sorgu_sayisi + 1, son_sorgu_at = NOW() WHERE id = $1',
+      [bagisci.id]
+    ).catch(() => {});
+
     const bagislarRes = await pool.query(
       `SELECT id, excel_id, ad_soyad, kimin_adina, ikinci_ref AS referans,
               durum, bagisci_id, referans_id, created_at, updated_at

@@ -66,6 +66,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'ulke_kodu') THEN
     ALTER TABLE bagiscilar ADD COLUMN ulke_kodu VARCHAR(5);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'sorgu_sayisi') THEN
+    ALTER TABLE bagiscilar ADD COLUMN sorgu_sayisi INTEGER NOT NULL DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'son_sorgu_at') THEN
+    ALTER TABLE bagiscilar ADD COLUMN son_sorgu_at TIMESTAMP;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'whatsapp_templates' AND column_name = 'kategori') THEN
     ALTER TABLE whatsapp_templates ADD COLUMN kategori VARCHAR(20) DEFAULT 'UTILITY';
   END IF;

@@ -150,8 +150,25 @@ async function crmImportYukle(req, res) {
   }
 }
 
+async function sorguSayisiSifirla(req, res) {
+  const kullaniciId = req.session.kullaniciId;
+  const id = parseInt(req.params.id);
+  try {
+    const r = await pool.query(
+      `UPDATE bagiscilar SET sorgu_sayisi = 0, son_sorgu_at = NULL, updated_at = NOW()
+       WHERE kullanici_id = $1 AND id = $2 RETURNING id, sorgu_sayisi`,
+      [kullaniciId, id]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ basarili: false, mesaj: 'Bağışçı bulunamadı.' });
+    res.json({ basarili: true, sorgu_sayisi: r.rows[0].sorgu_sayisi });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
 module.exports = {
   bagisciGuncelle, bagisciSil, bagisciTopluSil,
   bagisSil, bagisTopluSil,
   crmImportYukle,
+  sorguSayisiSifirla,
 };

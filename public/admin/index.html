@@ -449,6 +449,11 @@
             </div>
             <div class="tablo-araclari">
               <input class="arama-input" id="bagiscilar-arama" placeholder="Ad, telefon, uniq kod veya CRM kod ara..." oninput="bagiscilarAramaGecikme()">
+              <select class="filtre-select" id="bagiscilar-crm-filtre" onchange="bagiscilarYukle(1)">
+                <option value="">Tüm Bağışçılar</option>
+                <option value="var">✓ CRM Kodu Olanlar</option>
+                <option value="yok">✗ CRM Kodu Olmayanlar</option>
+              </select>
               <select class="filtre-select" id="bagiscilar-limit" onchange="bagiscilarYukle(1)">
                 <option value="50">50 satır</option>
                 <option value="100">100 satır</option>
@@ -698,6 +703,14 @@
                   <div id="wa-footer-text" style="padding:10px 14px;background:#f9fafb;border-radius:8px;font-size:0.85rem;color:#6b7280"></div>
                 </div>
 
+                <div id="wa-buttons-grup" style="display:none" class="form-group">
+                  <label>Buton Değişkenleri</label>
+                  <div class="wa-vars" id="wa-button-vars"></div>
+                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:6px;display:block">
+                    URL butonlarında değişken kullanıyorsanız buradan doldurun.
+                  </small>
+                </div>
+
                 <div class="form-group">
                   <label>Önizleme (örnek bağışçı ile)</label>
                   <div class="onizleme-kutu" id="wa-onizleme">Şablon doldurun...</div>
@@ -744,6 +757,15 @@
                     <input type="number" class="form-control" id="wa-aralik" value="600" min="500" max="60000" style="width:120px">
                     <span style="font-size:0.82rem;color:#9ca3af">Min 500ms (1 dakikada max 120 mesaj)</span>
                   </div>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                    <input type="checkbox" id="wa-diger-ulkeler">
+                    <span>Bilinmeyen ülke kodlu numaralara da gönderim denensin</span>
+                  </label>
+                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">
+                    Varsayılan izinli kodlar: <strong>31, 32, 33, 34, 41, 49, 90</strong>. Diğer ülke kodları varsa bu kutucuk seçilince Monochat'e denenir; başarısız olursa hata olarak işaretlenir.
+                  </small>
                 </div>
                 <button class="btn btn-success" id="wa-gonder-btn" onclick="waGonderBaslat()" style="width:100%">
                   🚀 WhatsApp Gönderimini Başlat
@@ -820,9 +842,19 @@
               <label>Template Adı (Monochat'teki ad)</label>
               <input type="text" class="form-control" id="wa-tmpl-ad" placeholder="bagis_bildirimi">
             </div>
-            <div class="form-group">
-              <label>Dil Kodu</label>
-              <input type="text" class="form-control" id="wa-tmpl-dil" placeholder="tr" value="tr" style="max-width:120px">
+            <div class="form-group" style="display:flex;gap:12px">
+              <div style="flex:1">
+                <label>Dil Kodu</label>
+                <input type="text" class="form-control" id="wa-tmpl-dil" placeholder="tr" value="tr">
+              </div>
+              <div style="flex:1">
+                <label>Kategori</label>
+                <select class="form-control" id="wa-tmpl-kategori" onchange="waTemplateFormGuncelle()">
+                  <option value="UTILITY">UTILITY (Bilgilendirme)</option>
+                  <option value="MARKETING">MARKETING (Pazarlama)</option>
+                  <option value="AUTHENTICATION">AUTHENTICATION (Doğrulama)</option>
+                </select>
+              </div>
             </div>
 
             <div class="form-group">
@@ -858,6 +890,12 @@
               <label>Footer Metni (sabit)</label>
               <input type="text" class="form-control" id="wa-tmpl-footer-text" placeholder="Teşekkürler" oninput="waTemplateFormGuncelle()">
             </div>
+
+            <div class="form-group">
+              <label>Buton Sayısı (0-3)</label>
+              <input type="number" class="form-control" id="wa-tmpl-btn-count" min="0" max="3" value="0" oninput="waTmplBtnFormCiz()" onchange="waTmplBtnFormCiz()" style="max-width:120px">
+            </div>
+            <div id="wa-tmpl-btn-form" style="display:flex;flex-direction:column;gap:10px"></div>
 
             <div class="wa-collapsible" id="wa-tmpl-json-collapse">
               <div class="wa-collapsible-header" onclick="document.getElementById('wa-tmpl-json-collapse').classList.toggle('acik')">
@@ -1134,11 +1172,13 @@
     bagiscilarSayfa = sayfa;
     const arama = document.getElementById('bagiscilar-arama').value;
     const limit = document.getElementById('bagiscilar-limit').value;
+    const crmFiltre = document.getElementById('bagiscilar-crm-filtre').value;
     const tbody = document.getElementById('bagiscilar-tbody');
-    tbody.innerHTML = `<tr><td colspan="7" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
     try {
       const params = new URLSearchParams({ sayfa, limit });
       if (arama) params.set('arama', arama);
+      if (crmFiltre) params.set('crm_filtre', crmFiltre);
       const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
       const data = await res.json();
       if (!data.basarili) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Yüklenemedi.</td></tr>`; return; }
@@ -1772,17 +1812,25 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       if (waTemplateList.length === 0) {
         el.innerHTML = '<div class="empty" style="padding:20px">Henüz template yok. + Yeni Template ile ekle.</div>';
       } else {
-        el.innerHTML = '<div style="display:grid;gap:10px">' + waTemplateList.map(t => `
+        el.innerHTML = '<div style="display:grid;gap:10px">' + waTemplateList.map(t => {
+          const ktRenkler = { UTILITY: '#dbeafe', MARKETING: '#fef3c7', AUTHENTICATION: '#dcfce7' };
+          const ktYazi = { UTILITY: '#1d4ed8', MARKETING: '#92400e', AUTHENTICATION: '#166534' };
+          const kt = t.kategori || 'UTILITY';
+          const btnCount = (t.components || []).find(c => c.type === 'BUTTONS')?.buttons?.length || 0;
+          return `
           <div class="wa-template-card ${waSeciliTemplate?.id === t.id ? 'aktif' : ''}" onclick="waTemplateSec(${t.id})">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;color:#111827">${esc(t.ad)}</div>
-                <div style="font-size:0.78rem;color:#9ca3af">${esc(t.dil_kodu)} · ${waBodyVarSayisi(t.components)} body var${waHeaderVar(t.components) ? ' · header' : ''}${waFooterVar(t.components) ? ' · footer' : ''}</div>
+                <div style="font-weight:600;color:#111827;display:flex;align-items:center;gap:8px">
+                  ${esc(t.ad)}
+                  <span class="badge" style="background:${ktRenkler[kt]};color:${ktYazi[kt]};font-size:0.7rem">${kt}</span>
+                </div>
+                <div style="font-size:0.78rem;color:#9ca3af;margin-top:3px">${esc(t.dil_kodu)} · ${waBodyVarSayisi(t.components)} body${waHeaderVar(t.components) ? ' · header' : ''}${waFooterVar(t.components) ? ' · footer' : ''}${btnCount > 0 ? ` · ${btnCount} buton` : ''}</div>
               </div>
               <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); waTemplateModalAc(${t.id})">Düzenle</button>
             </div>
           </div>
-        `).join('') + '</div>';
+        `;}).join('') + '</div>';
       }
     } catch {}
   }
@@ -1855,6 +1903,33 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       document.getElementById('wa-footer-grup').style.display = 'none';
     }
 
+    // Buttons (variable'ı olan butonlar için input)
+    const buttons = comps.find(c => c.type === 'BUTTONS');
+    const btnEl = document.getElementById('wa-button-vars');
+    if (buttons && Array.isArray(buttons.buttons) && buttons.buttons.some(b => b.has_variable)) {
+      document.getElementById('wa-buttons-grup').style.display = 'block';
+      btnEl.innerHTML = buttons.buttons.map((b, i) => {
+        if (!b.has_variable) return '';
+        const tip = (b.type || 'URL').toUpperCase();
+        return `
+          <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:#fafbff;border-radius:8px">
+            <div class="wa-var-row">
+              <span class="wa-var-label">${tip} #${i+1}</span>
+              <input type="text" class="form-control" id="wa-btn-${i}" placeholder="${tip === 'URL' ? 'Sadece URL\'in değişken kısmı (ör: AB12CD34)' : 'Buton değişkeni'}" oninput="waOnizleme()">
+            </div>
+            ${b.url_template ? `<div style="margin-left:118px;font-size:0.78rem;color:#9ca3af">URL: <code>${esc(b.url_template)}</code></div>` : ''}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:118px">
+              <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{BAGISCI_ADI_SOYADI}')">+ Ad Soyad</button>
+              <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{UNIQ_KOD}')">+ Uniq Kod</button>
+              <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-btn-${i}','{CRM_KOD}')">+ CRM Kod</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      document.getElementById('wa-buttons-grup').style.display = 'none';
+    }
+
     waOnizleme();
   }
 
@@ -1922,29 +1997,83 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       document.getElementById('wa-template-modal-baslik').textContent = 'Template Düzenle';
       document.getElementById('wa-tmpl-ad').value = t.ad;
       document.getElementById('wa-tmpl-dil').value = t.dil_kodu;
+      document.getElementById('wa-tmpl-kategori').value = t.kategori || 'UTILITY';
       const comps = t.components || [];
       const h = comps.find(c => c.type === 'HEADER');
       const b = comps.find(c => c.type === 'BODY');
       const f = comps.find(c => c.type === 'FOOTER');
+      const btns = comps.find(c => c.type === 'BUTTONS');
       document.getElementById('wa-tmpl-header-var').value = h ? 'evet' : 'hayir';
       document.getElementById('wa-tmpl-header-format').value = h?.format || 'TEXT';
       document.getElementById('wa-tmpl-body-count').value = b?.variables?.length || 0;
       document.getElementById('wa-tmpl-footer-var').value = f ? 'evet' : 'hayir';
       document.getElementById('wa-tmpl-footer-text').value = f?.text || '';
+      document.getElementById('wa-tmpl-btn-count').value = btns?.buttons?.length || 0;
+      waTmplBtnDoldur(btns?.buttons || []);
       document.getElementById('wa-tmpl-sil-btn').style.display = 'inline-flex';
     } else {
       document.getElementById('wa-template-modal-baslik').textContent = '+ Yeni Template';
       document.getElementById('wa-tmpl-ad').value = '';
       document.getElementById('wa-tmpl-dil').value = 'tr';
+      document.getElementById('wa-tmpl-kategori').value = 'UTILITY';
       document.getElementById('wa-tmpl-header-var').value = 'hayir';
       document.getElementById('wa-tmpl-header-format').value = 'TEXT';
       document.getElementById('wa-tmpl-body-count').value = 0;
       document.getElementById('wa-tmpl-footer-var').value = 'hayir';
       document.getElementById('wa-tmpl-footer-text').value = '';
+      document.getElementById('wa-tmpl-btn-count').value = 0;
+      document.getElementById('wa-tmpl-btn-form').innerHTML = '';
       document.getElementById('wa-tmpl-sil-btn').style.display = 'none';
     }
     waTemplateFormGuncelle();
     document.getElementById('wa-template-modal').classList.add('acik');
+  }
+
+  function waTmplBtnFormCiz() {
+    const count = Math.max(0, Math.min(3, parseInt(document.getElementById('wa-tmpl-btn-count').value) || 0));
+    const formEl = document.getElementById('wa-tmpl-btn-form');
+    // Mevcut değerleri koru
+    const mevcut = [];
+    for (let i = 0; i < 3; i++) {
+      const tip = document.getElementById(`wa-tmpl-btn-${i}-tip`);
+      if (tip) mevcut.push({
+        type: tip.value,
+        text: document.getElementById(`wa-tmpl-btn-${i}-text`)?.value || '',
+        url_template: document.getElementById(`wa-tmpl-btn-${i}-url`)?.value || '',
+        has_variable: document.getElementById(`wa-tmpl-btn-${i}-var`)?.checked || false,
+      });
+    }
+    waTmplBtnDoldur(Array.from({length: count}, (_, i) => mevcut[i] || { type: 'URL', text: '', url_template: '', has_variable: false }));
+  }
+
+  function waTmplBtnDoldur(buttons) {
+    const formEl = document.getElementById('wa-tmpl-btn-form');
+    if (!buttons || buttons.length === 0) { formEl.innerHTML = ''; return; }
+    document.getElementById('wa-tmpl-btn-count').value = buttons.length;
+    formEl.innerHTML = buttons.map((b, i) => `
+      <div style="border:1.5px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafbff">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <select class="form-control" id="wa-tmpl-btn-${i}-tip" onchange="waTmplBtnTipDegisti(${i});waTemplateFormGuncelle()" style="max-width:180px">
+            <option value="URL" ${b.type === 'URL' ? 'selected' : ''}>URL (Web Linki)</option>
+            <option value="QUICK_REPLY" ${b.type === 'QUICK_REPLY' ? 'selected' : ''}>Quick Reply</option>
+            <option value="PHONE_NUMBER" ${b.type === 'PHONE_NUMBER' ? 'selected' : ''}>Phone Number</option>
+          </select>
+          <input type="text" class="form-control" id="wa-tmpl-btn-${i}-text" value="${esc(b.text || '')}" placeholder="Buton Metni (ör. Sorgula)" oninput="waTemplateFormGuncelle()">
+        </div>
+        <div id="wa-tmpl-btn-${i}-url-grup" style="display:${b.type === 'URL' ? 'block' : 'none'}">
+          <input type="text" class="form-control" id="wa-tmpl-btn-${i}-url" value="${esc(b.url_template || '')}" placeholder="https://siteniz.com/sorgu?kod={{1}}" oninput="waTemplateFormGuncelle()">
+          <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.82rem;cursor:pointer">
+            <input type="checkbox" id="wa-tmpl-btn-${i}-var" ${b.has_variable ? 'checked' : ''} onchange="waTemplateFormGuncelle()">
+            <span>URL'de değişken var (gönderim ekranında doldurulacak)</span>
+          </label>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function waTmplBtnTipDegisti(i) {
+    const tip = document.getElementById(`wa-tmpl-btn-${i}-tip`).value;
+    document.getElementById(`wa-tmpl-btn-${i}-url-grup`).style.display = tip === 'URL' ? 'block' : 'none';
   }
 
   function waTemplateComponentsOlustur() {
@@ -1953,6 +2082,7 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const bodyCount = Math.max(0, Math.min(9, parseInt(document.getElementById('wa-tmpl-body-count').value) || 0));
     const footerVar = document.getElementById('wa-tmpl-footer-var').value === 'evet';
     const footerText = document.getElementById('wa-tmpl-footer-text').value;
+    const btnCount = Math.max(0, Math.min(3, parseInt(document.getElementById('wa-tmpl-btn-count').value) || 0));
 
     const comps = [];
     if (headerVar) {
@@ -1970,7 +2100,29 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     comps.push(bodyComp);
     if (footerVar) comps.push({ type: 'FOOTER', text: footerText });
 
-    return { name: document.getElementById('wa-tmpl-ad').value, languageCode: document.getElementById('wa-tmpl-dil').value, components: comps };
+    if (btnCount > 0) {
+      const buttons = [];
+      for (let i = 0; i < btnCount; i++) {
+        const tipEl = document.getElementById(`wa-tmpl-btn-${i}-tip`);
+        if (!tipEl) continue;
+        const tip = tipEl.value;
+        const text = document.getElementById(`wa-tmpl-btn-${i}-text`).value;
+        const btn = { type: tip, text };
+        if (tip === 'URL') {
+          btn.url_template = document.getElementById(`wa-tmpl-btn-${i}-url`).value;
+          btn.has_variable = document.getElementById(`wa-tmpl-btn-${i}-var`).checked;
+        }
+        buttons.push(btn);
+      }
+      comps.push({ type: 'BUTTONS', buttons });
+    }
+
+    return {
+      name: document.getElementById('wa-tmpl-ad').value,
+      languageCode: document.getElementById('wa-tmpl-dil').value,
+      category: document.getElementById('wa-tmpl-kategori').value,
+      components: comps,
+    };
   }
 
   function waTemplateFormGuncelle() {
@@ -1994,10 +2146,12 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       // Form alanlarını JSON'a göre güncelle
       if (obj.name !== undefined) document.getElementById('wa-tmpl-ad').value = obj.name;
       if (obj.languageCode) document.getElementById('wa-tmpl-dil').value = obj.languageCode;
+      if (obj.category) document.getElementById('wa-tmpl-kategori').value = obj.category;
       const comps = obj.components || [];
       const h = comps.find(c => c.type === 'HEADER');
       const b = comps.find(c => c.type === 'BODY');
       const f = comps.find(c => c.type === 'FOOTER');
+      const btns = comps.find(c => c.type === 'BUTTONS');
       document.getElementById('wa-tmpl-header-var').value = h ? 'evet' : 'hayir';
       if (h) document.getElementById('wa-tmpl-header-format').value = h.format || 'TEXT';
       document.getElementById('wa-tmpl-body-count').value = b?.variables?.length || 0;
@@ -2005,6 +2159,8 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       if (f) document.getElementById('wa-tmpl-footer-text').value = f.text || '';
       document.getElementById('wa-tmpl-header-format-grup').style.display = h ? 'block' : 'none';
       document.getElementById('wa-tmpl-footer-text-grup').style.display = f ? 'block' : 'none';
+      if (btns && Array.isArray(btns.buttons)) waTmplBtnDoldur(btns.buttons);
+      else { document.getElementById('wa-tmpl-btn-count').value = 0; document.getElementById('wa-tmpl-btn-form').innerHTML = ''; }
     } catch (e) {
       document.getElementById('wa-tmpl-json').classList.add('invalid');
       document.getElementById('wa-tmpl-json-hata').style.display = 'block';
@@ -2033,7 +2189,12 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       const method = waEditingTemplateId ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method, credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ad: payload.name, dil_kodu: payload.languageCode, components: payload.components }),
+        body: JSON.stringify({
+          ad: payload.name,
+          dil_kodu: payload.languageCode,
+          kategori: payload.category || 'UTILITY',
+          components: payload.components,
+        }),
       });
       const data = await res.json();
       if (data.basarili) {
@@ -2125,12 +2286,24 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const bodyInputs = [];
     for (let i = 0; i < bodyCount; i++) bodyInputs.push(document.getElementById('wa-body-' + i).value);
 
+    // Button input'larını topla (variable'ı olan butonlar için)
+    const buttonInputs = [];
+    const btnComp = (waSeciliTemplate.components || []).find(c => c.type === 'BUTTONS');
+    if (btnComp && Array.isArray(btnComp.buttons)) {
+      btnComp.buttons.forEach((b, i) => {
+        const el = document.getElementById('wa-btn-' + i);
+        buttonInputs.push(el ? el.value : '');
+      });
+    }
+
     const headerInput = document.getElementById('wa-header-grup').style.display !== 'none'
       ? document.getElementById('wa-header-input').value
       : null;
 
     const aralik = parseInt(document.getElementById('wa-aralik').value) || 600;
     if (aralik < 500) { hata.textContent = 'Aralık en az 500ms olmalı.'; hata.style.display = 'block'; return; }
+
+    const digerUlkeler = document.getElementById('wa-diger-ulkeler').checked;
 
     if (!confirm(`${waSecilenBagisciIds.size} bağışçıya WhatsApp gönderilecek. Onaylıyor musunuz?`)) return;
 
@@ -2143,6 +2316,8 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
           template_id: waSeciliTemplate.id,
           header_input: headerInput,
           body_inputs: bodyInputs,
+          button_inputs: buttonInputs,
+          diger_ulkeler: digerUlkeler,
           bagisci_ids: [...waSecilenBagisciIds],
           aralik_ms: aralik,
         }),

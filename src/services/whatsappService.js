@@ -1,8 +1,8 @@
 const axios = require('axios');
 const pool = require('../config/database');
+const { WHATSAPP_KNOWN_CC } = require('./telefonService');
 
-const MONO_KEYS = ['mono_slug', 'mono_api_token', 'mono_business_phone', 'mono_base_url'];
-const MIN_ARALIK_MS = 500; // 60 sn / 120 mesaj = 500ms
+const MIN_ARALIK_MS = 500;
 
 async function configOku(kullaniciId) {
   const r = await pool.query(
@@ -20,7 +20,6 @@ async function configOku(kullaniciId) {
 }
 
 async function configKaydet(kullaniciId, { slug, apiToken, businessPhone, baseUrl }) {
-  // Token boşsa mevcudu koru
   if (!apiToken) {
     const mevcut = await configOku(kullaniciId);
     apiToken = mevcut?.apiToken || '';
@@ -35,17 +34,40 @@ async function configKaydet(kullaniciId, { slug, apiToken, businessPhone, baseUr
   );
 }
 
-function telefonWhatsappFormat(ham, ulkeKoduVarMi) {
-  if (!ulkeKoduVarMi) return null;
-  if (!ham) return null;
+/**
+ * @param {string} ham - ham telefon
+ * @param {string|null} ulkeKodu - tespit edilen ülke kodu
+ * @param {boolean} ulkeKoduVarMi - eski bayrak
+ * @param {boolean} digerleriIzinli - bilinmeyen CC'ye gönderim izni
+ * @returns {{tel: string|null, sebep: string|null, bilinen: boolean}}
+ */
+function telefonWhatsappFormat(ham, ulkeKodu, ulkeKoduVarMi, digerleriIzinli = false) {
+  if (!ham) return { tel: null, sebep: 'Telefon yok', bilinen: false };
+
   const tel = String(ham).replace(/\D/g, '');
-  // Monochat ülke kodu DAHIL bekler: 905XXXXXXXXX
-  if (tel.startsWith('90') && tel.length === 12) return tel;
-  return null;
+  if (tel.length < 10 || tel.length > 15) {
+    return { tel: null, sebep: 'Telefon uzunluğu uygun değil', bilinen: false };
+  }
+
+  // Ülke kodu hiç yoksa gönderim mümkün değil
+  if (!ulkeKodu && !ulkeKoduVarMi) {
+    return { tel: null, sebep: 'Ülke kodu yok — gönderim için telefon ülke kodlu olmalı', bilinen: false };
+  }
+
+  const bilinen = ulkeKodu && WHATSAPP_KNOWN_CC.includes(String(ulkeKodu));
+  if (!bilinen && !digerleriIzinli) {
+    return {
+      tel: null,
+      sebep: `Ülke kodu (${ulkeKodu || '?'}) izinli listede değil — "Diğer ülkelere gönder" seçeneğini açın`,
+      bilinen: false,
+    };
+  }
+
+  return { tel, sebep: null, bilinen };
 }
 
 function placeholderDoldur(metin, bagisci) {
-  if (!metin) return '';
+  if (metin === null || metin === undefined) return '';
   return String(metin)
     .replace(/\{BAGISCI_ADI_SOYADI\}/g, bagisci.ad_soyad || '')
     .replace(/\{UNIQ_KOD\}/g, bagisci.uniq_kod || '')
@@ -69,12 +91,7 @@ function hataDetayCikar(err) {
   return err.message || 'Hata detayı alınamadı';
 }
 
-/**
- * Monochat template SMS gönderir
- * @param {Object} config - { slug, apiToken, businessPhone, baseUrl }
- * @param {Object} payload - { templateName, languageCode, customerPhone, headerInput, bodyInputs }
- */
-async function templateSend(config, { templateName, languageCode, customerPhone, headerComponent, bodyParams }) {
+async function templateSend(config, { templateName, languageCode, customerPhone, headerComponent, bodyParams, buttonComponents }) {
   if (!config.slug || !config.apiToken || !config.businessPhone) {
     throw new Error('Monochat yapılandırması eksik.');
   }
@@ -83,6 +100,9 @@ async function templateSend(config, { templateName, languageCode, customerPhone,
   if (headerComponent) variables.push(headerComponent);
   if (bodyParams && bodyParams.length > 0) {
     variables.push({ type: 'BODY', parameters: bodyParams });
+  }
+  if (Array.isArray(buttonComponents)) {
+    for (const btn of buttonComponents) variables.push(btn);
   }
 
   const url = `${config.baseUrl.replace(/\/$/, '')}/api/${config.slug}/custom-functions/template-app/api/template/send.js`;

@@ -57,15 +57,22 @@ CREATE TABLE IF NOT EXISTS bagiscilar (
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_kullanici ON bagiscilar(kullanici_id);
 
--- Mevcut tablolara crm_kod kolonunu ekle (ALTER) — index önce kolon
+-- Mevcut tablolara yeni kolonları ekle (ALTER)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'crm_kod') THEN
     ALTER TABLE bagiscilar ADD COLUMN crm_kod VARCHAR(100);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'ulke_kodu') THEN
+    ALTER TABLE bagiscilar ADD COLUMN ulke_kodu VARCHAR(5);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'whatsapp_templates' AND column_name = 'kategori') THEN
+    ALTER TABLE whatsapp_templates ADD COLUMN kategori VARCHAR(20) DEFAULT 'UTILITY';
+  END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_crm_kod ON bagiscilar(crm_kod);
+CREATE INDEX IF NOT EXISTS idx_bagiscilar_ulke_kodu ON bagiscilar(ulke_kodu);
 
 CREATE TABLE IF NOT EXISTS bagislar (
   id SERIAL PRIMARY KEY,

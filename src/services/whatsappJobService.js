@@ -22,11 +22,10 @@ async function jobBul(kullaniciId, jobId) {
 }
 
 async function jobOlustur(kullaniciId, payload) {
-  const { template_id, header_input, body_inputs, bagisci_ids, aralik_ms } = payload;
+  const { template_id, header_input, body_inputs, button_inputs, bagisci_ids, aralik_ms, diger_ulkeler } = payload;
   if (!template_id) throw new Error('Template seçimi zorunlu.');
   if (!Array.isArray(bagisci_ids) || bagisci_ids.length === 0) throw new Error('En az bir bağışçı seçin.');
 
-  // Tek aktif job kısıtı
   const aktif = await aktifJobBul(kullaniciId);
   if (aktif) throw new Error(`Halen aktif bir gönderim var (#${aktif.id}). Bitirmeden yeni başlatamazsınız.`);
 
@@ -34,6 +33,12 @@ async function jobOlustur(kullaniciId, payload) {
   if (!template) throw new Error('Template bulunamadı.');
 
   const aralik = Math.max(MIN_ARALIK_MS, Math.min(60000, parseInt(aralik_ms) || 600));
+  // body_inputs içine button_inputs ve diger_ulkeler de ekle (jsonb)
+  const bodyInputsFull = {
+    body: body_inputs || [],
+    buttons: button_inputs || [],
+    diger_ulkeler: !!diger_ulkeler,
+  };
 
   const client = await pool.connect();
   try {
@@ -49,7 +54,7 @@ async function jobOlustur(kullaniciId, payload) {
         kullaniciId, template.id, template.ad, template.dil_kodu,
         JSON.stringify(template.components),
         header_input || null,
-        JSON.stringify(body_inputs || []),
+        JSON.stringify(bodyInputsFull),
         aralik,
         bagisci_ids.length,
       ]
@@ -149,7 +154,7 @@ async function jobIsle(kullaniciId, jobId) {
 
       // Sıradaki pending item'ı al
       const itemRes = await pool.query(
-        `SELECT i.*, b.uniq_kod, b.ulke_kodu_var_mi, b.crm_kod
+        `SELECT i.*, b.uniq_kod, b.ulke_kodu_var_mi, b.ulke_kodu, b.crm_kod
          FROM whatsapp_job_items i
          LEFT JOIN bagiscilar b ON b.id = i.bagisci_id
          WHERE i.job_id = $1 AND i.durum = 'pending'
@@ -173,29 +178,29 @@ async function jobIsle(kullaniciId, jobId) {
         crm_kod: item.crm_kod,
       };
 
-      // Telefon kontrolü
-      const customerPhone = wa.telefonWhatsappFormat(item.telefon, item.ulke_kodu_var_mi);
+      // body_inputs artık { body, buttons, diger_ulkeler } objesi
+      const rawBody = job.body_inputs || {};
+      const bodyInputs = Array.isArray(rawBody) ? rawBody : (rawBody.body || []);
+      const buttonInputs = Array.isArray(rawBody) ? [] : (rawBody.buttons || []);
+      const digerUlkeler = !Array.isArray(rawBody) && !!rawBody.diger_ulkeler;
+
+      // Telefon kontrolü (çoklu ülke kodu destekli)
+      const tfor = wa.telefonWhatsappFormat(item.telefon, item.ulke_kodu, item.ulke_kodu_var_mi, digerUlkeler);
+      const customerPhone = tfor.tel;
 
       if (!customerPhone) {
         await pool.query(
           `UPDATE whatsapp_job_items SET durum = 'skipped', sebep = $1, processed_at = NOW() WHERE id = $2`,
-          [
-            item.ulke_kodu_var_mi
-              ? 'Telefon formatı geçersiz'
-              : 'Ülke kodu (90) yok — sadece 90 prefixli numaralara gönderilir',
-            item.id,
-          ]
+          [tfor.sebep || 'Telefon uygun değil', item.id]
         );
         await pool.query(
           "UPDATE whatsapp_jobs SET islenmis = islenmis + 1, atlanan = atlanan + 1, updated_at = NOW() WHERE id = $1",
           [jobId]
         );
-        continue; // gecikmesiz devam
+        continue;
       }
 
-      // Header ve body parameter'ları placeholder doldur
       const headerInput = job.header_input;
-      const bodyInputs = job.body_inputs || [];
       const templateSnapshot = job.template_snapshot || [];
 
       const headerVarMi = Array.isArray(templateSnapshot) && templateSnapshot.some(c => c.type === 'HEADER');
@@ -204,15 +209,31 @@ async function jobIsle(kullaniciId, jobId) {
         const headerComp = templateSnapshot.find(c => c.type === 'HEADER');
         const format = (headerComp.format || 'TEXT').toUpperCase();
         const value = wa.placeholderDoldur(headerInput, bagisciData);
-        headerComponent = {
-          type: 'HEADER',
-          parameters: format === 'IMAGE' || format === 'VIDEO' || format === 'DOCUMENT'
-            ? [value]
-            : [value],
-        };
+        headerComponent = { type: 'HEADER', parameters: [value] };
       }
 
       const bodyParams = (bodyInputs || []).map(b => wa.placeholderDoldur(b, bagisciData));
+
+      // BUTTONS: her button için parameter
+      const buttonComponents = [];
+      if (Array.isArray(templateSnapshot)) {
+        const btnComp = templateSnapshot.find(c => c.type === 'BUTTONS');
+        if (btnComp && Array.isArray(btnComp.buttons)) {
+          btnComp.buttons.forEach((btn, idx) => {
+            // Sadece variable'ı olan butonlar payload'a girer
+            const subType = (btn.type || 'URL').toLowerCase();
+            if (btn.has_variable && buttonInputs[idx] !== undefined) {
+              const val = wa.placeholderDoldur(buttonInputs[idx], bagisciData);
+              buttonComponents.push({
+                type: 'BUTTON',
+                sub_type: subType,
+                index: String(idx),
+                parameters: [val],
+              });
+            }
+          });
+        }
+      }
 
       try {
         await wa.templateSend(config, {
@@ -221,6 +242,7 @@ async function jobIsle(kullaniciId, jobId) {
           customerPhone,
           headerComponent,
           bodyParams,
+          buttonComponents,
         });
 
         await pool.query(

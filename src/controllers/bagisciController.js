@@ -29,11 +29,10 @@ async function bagisciGuncelle(req, res) {
     }
 
     if (telefon !== undefined) {
-      const { telefon: norm, ulke_kodu_var_mi } = normalizeTelefon(telefon);
+      const { telefon: norm, ulke_kodu_var_mi, ulke_kodu } = normalizeTelefon(telefon);
       if (telefon && !norm) {
         return res.status(400).json({ basarili: false, mesaj: 'Geçersiz telefon numarası.' });
       }
-      // Aynı telefon başka birinde mi?
       if (norm) {
         const cak = await pool.query(
           'SELECT id FROM bagiscilar WHERE kullanici_id = $1 AND telefon = $2 AND id != $3',
@@ -43,10 +42,9 @@ async function bagisciGuncelle(req, res) {
           return res.status(400).json({ basarili: false, mesaj: 'Bu telefon başka bir bağışçıda kayıtlı.' });
         }
       }
-      set.push(`telefon = $${idx++}`);
-      params.push(norm);
-      set.push(`ulke_kodu_var_mi = $${idx++}`);
-      params.push(ulke_kodu_var_mi);
+      set.push(`telefon = $${idx++}`); params.push(norm);
+      set.push(`ulke_kodu_var_mi = $${idx++}`); params.push(ulke_kodu_var_mi);
+      set.push(`ulke_kodu = $${idx++}`); params.push(ulke_kodu);
     }
 
     if (crm_kod !== undefined) {

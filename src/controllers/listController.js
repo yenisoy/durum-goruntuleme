@@ -6,27 +6,34 @@ async function bagiscilarListele(req, res) {
   const limit = Math.min(100000, Math.max(1, parseInt(req.query.limit) || 50));
   const offset = (sayfa - 1) * limit;
   const arama = req.query.arama ? `%${req.query.arama}%` : null;
+  const crmFiltre = req.query.crm_filtre; // 'var' | 'yok' | undefined
 
   try {
-    const params = [kullaniciId, limit, offset];
-    let extraWhere = '';
-    if (arama) { params.push(arama); extraWhere = `AND (b.ad_soyad ILIKE $4 OR b.telefon ILIKE $4 OR b.uniq_kod ILIKE $4 OR b.crm_kod ILIKE $4)`; }
+    const kosullar = ['b.kullanici_id = $1'];
+    const params = [kullaniciId];
+
+    if (arama) {
+      params.push(arama);
+      kosullar.push(`(b.ad_soyad ILIKE $${params.length} OR b.telefon ILIKE $${params.length} OR b.uniq_kod ILIKE $${params.length} OR b.crm_kod ILIKE $${params.length})`);
+    }
+    if (crmFiltre === 'var') kosullar.push("b.crm_kod IS NOT NULL AND b.crm_kod != ''");
+    else if (crmFiltre === 'yok') kosullar.push("(b.crm_kod IS NULL OR b.crm_kod = '')");
+
+    const where = 'WHERE ' + kosullar.join(' AND ');
+    const listParams = [...params, limit, offset];
 
     const [satirlar, toplam] = await Promise.all([
       pool.query(
         `SELECT b.*, COUNT(bl.id)::int AS bagis_sayisi
          FROM bagiscilar b
          LEFT JOIN bagislar bl ON bl.bagisci_id = b.id
-         WHERE b.kullanici_id = $1 ${extraWhere}
+         ${where}
          GROUP BY b.id
          ORDER BY bagis_sayisi DESC, b.id ASC
-         LIMIT $2 OFFSET $3`,
-        params
+         LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+        listParams
       ),
-      pool.query(
-        `SELECT COUNT(*)::int FROM bagiscilar b WHERE kullanici_id = $1 ${arama ? 'AND (b.ad_soyad ILIKE $2 OR b.telefon ILIKE $2 OR b.uniq_kod ILIKE $2 OR b.crm_kod ILIKE $2)' : ''}`,
-        arama ? [kullaniciId, arama] : [kullaniciId]
-      ),
+      pool.query(`SELECT COUNT(*)::int FROM bagiscilar b ${where}`, params),
     ]);
 
     res.json({ basarili: true, veri: satirlar.rows, toplam: toplam.rows[0].count, sayfa, limit });

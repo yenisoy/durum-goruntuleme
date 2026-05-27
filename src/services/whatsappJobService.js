@@ -149,7 +149,7 @@ async function jobIsle(kullaniciId, jobId) {
 
       // Sıradaki pending item'ı al
       const itemRes = await pool.query(
-        `SELECT i.*, b.uniq_kod, b.ulke_kodu_var_mi
+        `SELECT i.*, b.uniq_kod, b.ulke_kodu_var_mi, b.crm_kod
          FROM whatsapp_job_items i
          LEFT JOIN bagiscilar b ON b.id = i.bagisci_id
          WHERE i.job_id = $1 AND i.durum = 'pending'
@@ -167,7 +167,11 @@ async function jobIsle(kullaniciId, jobId) {
       }
 
       const item = itemRes.rows[0];
-      const bagisciData = { ad_soyad: item.bagisci_ad, uniq_kod: item.uniq_kod };
+      const bagisciData = {
+        ad_soyad: item.bagisci_ad,
+        uniq_kod: item.uniq_kod,
+        crm_kod: item.crm_kod,
+      };
 
       // Telefon kontrolü
       const customerPhone = wa.telefonWhatsappFormat(item.telefon, item.ulke_kodu_var_mi);

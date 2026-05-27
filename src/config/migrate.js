@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS bagiscilar (
   telefon VARCHAR(20),
   ulke_kodu_var_mi BOOLEAN DEFAULT false,
   uniq_kod CHAR(8) NOT NULL,
+  crm_kod VARCHAR(100),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE (kullanici_id, telefon),
@@ -55,6 +56,16 @@ CREATE TABLE IF NOT EXISTS bagiscilar (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_kullanici ON bagiscilar(kullanici_id);
+
+-- Mevcut tablolara crm_kod kolonunu ekle (ALTER) — index önce kolon
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bagiscilar' AND column_name = 'crm_kod') THEN
+    ALTER TABLE bagiscilar ADD COLUMN crm_kod VARCHAR(100);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_bagiscilar_crm_kod ON bagiscilar(crm_kod);
 
 CREATE TABLE IF NOT EXISTS bagislar (
   id SERIAL PRIMARY KEY,

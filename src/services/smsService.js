@@ -17,7 +17,8 @@ function telefonNetgsmFormat(ham, ulkeKoduVarMi) {
 function mesajOlustur(template, bagisci) {
   return template
     .replace(/\{BAGISCI_ADI_SOYADI\}/g, bagisci.ad_soyad || '')
-    .replace(/\{UNIQ_KOD\}/g, bagisci.uniq_kod || '');
+    .replace(/\{UNIQ_KOD\}/g, bagisci.uniq_kod || '')
+    .replace(/\{CRM_KOD\}/g, bagisci.crm_kod || '');
 }
 
 function hataDetayCikar(err) {
@@ -71,7 +72,7 @@ async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs, iysfilt
 
   // SADECE kullanıcının kendi bağışçıları + ülke kodu olanlar
   const bagiscilar = await pool.query(
-    `SELECT id, ad_soyad, telefon, ulke_kodu_var_mi, uniq_kod FROM bagiscilar
+    `SELECT id, ad_soyad, telefon, ulke_kodu_var_mi, uniq_kod, crm_kod FROM bagiscilar
      WHERE kullanici_id = $1 AND id = ANY($2) AND telefon IS NOT NULL`,
     [kullaniciId, bagisciIds]
   );

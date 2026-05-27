@@ -10,7 +10,7 @@ async function bagiscilarListele(req, res) {
   try {
     const params = [kullaniciId, limit, offset];
     let extraWhere = '';
-    if (arama) { params.push(arama); extraWhere = `AND (b.ad_soyad ILIKE $4 OR b.telefon ILIKE $4 OR b.uniq_kod ILIKE $4)`; }
+    if (arama) { params.push(arama); extraWhere = `AND (b.ad_soyad ILIKE $4 OR b.telefon ILIKE $4 OR b.uniq_kod ILIKE $4 OR b.crm_kod ILIKE $4)`; }
 
     const [satirlar, toplam] = await Promise.all([
       pool.query(
@@ -24,7 +24,7 @@ async function bagiscilarListele(req, res) {
         params
       ),
       pool.query(
-        `SELECT COUNT(*)::int FROM bagiscilar b WHERE kullanici_id = $1 ${arama ? 'AND (b.ad_soyad ILIKE $2 OR b.telefon ILIKE $2 OR b.uniq_kod ILIKE $2)' : ''}`,
+        `SELECT COUNT(*)::int FROM bagiscilar b WHERE kullanici_id = $1 ${arama ? 'AND (b.ad_soyad ILIKE $2 OR b.telefon ILIKE $2 OR b.uniq_kod ILIKE $2 OR b.crm_kod ILIKE $2)' : ''}`,
         arama ? [kullaniciId, arama] : [kullaniciId]
       ),
     ]);

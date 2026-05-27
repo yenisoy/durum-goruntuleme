@@ -9,6 +9,7 @@ const { configGetir, configGuncelle, onizleme, smsSend } = require('../controlle
 const { sablonGetir, widgetIndir } = require('../controllers/widgetController');
 const kCtrl = require('../controllers/kullaniciController');
 const waCtrl = require('../controllers/whatsappController');
+const bgCtrl = require('../controllers/bagisciController');
 const { girisKontrol, adminKontrol } = require('../middleware/adminAuth');
 
 const upload = multer({
@@ -32,6 +33,9 @@ router.get('/durum', durumKontrol);
 router.post('/cikis', girisKontrol, cikis);
 router.post('/yukle', girisKontrol, upload.single('excel'), excelYukle);
 router.get('/bagiscilar', girisKontrol, bagiscilarListele);
+router.put('/bagiscilar/:id', girisKontrol, bgCtrl.bagisciGuncelle);
+router.delete('/bagiscilar/:id', girisKontrol, bgCtrl.bagisciSil);
+router.post('/bagiscilar/crm-import', girisKontrol, upload.single('excel'), bgCtrl.crmImportYukle);
 router.get('/bagislar', girisKontrol, bagislarListele);
 
 router.get('/sms/config', girisKontrol, configGetir);

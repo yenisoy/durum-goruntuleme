@@ -392,13 +392,54 @@
 
         <!-- BAĞIŞÇILAR -->
         <div id="sayfa-bagiscilar" class="sayfa">
+          <!-- CRM IMPORT CARD -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">CRM Kod Eşleme</span>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('crm-yardim').classList.toggle('acik')">📖 Format</button>
+            </div>
+            <div class="wa-collapsible" id="crm-yardim">
+              <div class="wa-collapsible-body" style="display:block;padding:14px 0">
+                <p style="font-size:0.85rem;color:#374151;margin-bottom:10px">
+                  Excel dosyanız <strong>2 sütun</strong> içermeli:
+                </p>
+                <table style="width:auto;border-collapse:collapse;font-size:0.85rem">
+                  <thead><tr><th style="padding:8px 14px;background:#f9fafb">Telefon</th><th style="padding:8px 14px;background:#f9fafb">CRM Kod</th></tr></thead>
+                  <tbody>
+                    <tr><td style="padding:6px 14px;border:1px solid #e5e7eb">905364139224</td><td style="padding:6px 14px;border:1px solid #e5e7eb">CRM-12345</td></tr>
+                    <tr><td style="padding:6px 14px;border:1px solid #e5e7eb">5551234567</td><td style="padding:6px 14px;border:1px solid #e5e7eb">CRM-67890</td></tr>
+                  </tbody>
+                </table>
+                <p style="font-size:0.8rem;color:#9ca3af;margin-top:10px">
+                  Başlık adları: <code>Telefon / Cep Telefonu / GSM / Phone</code> ve <code>CRM Kod / CRM / Kod</code> kabul edilir.
+                </p>
+              </div>
+            </div>
+            <div id="crm-hata" class="alert alert-error" style="display:none;margin-top:10px"></div>
+            <div id="crm-basari" class="alert alert-success" style="display:none;margin-top:10px"></div>
+            <div class="form-group" style="margin-top:14px">
+              <div class="drop-zone" id="crm-drop-zone" onclick="document.getElementById('crm-dosya-input').click()" style="padding:20px">
+                <div class="icon" style="font-size:1.8rem">📋</div>
+                <p><strong>CRM Excel'ini buraya sürükle</strong> veya tıkla</p>
+                <div class="file-chosen" id="crm-dosya-adi"></div>
+                <input type="file" id="crm-dosya-input" accept=".xls,.xlsx" onchange="crmDosyaSec(this)">
+              </div>
+            </div>
+            <button class="btn btn-primary" id="crm-yukle-btn" onclick="crmYukle()" disabled style="width:100%">CRM Kodlarını Eşle ve Kaydet</button>
+            <div id="crm-sonuc" style="display:none;margin-top:14px">
+              <div class="ozet-grid" id="crm-ozet-grid"></div>
+              <div id="crm-eslesmeyen-tablo"></div>
+            </div>
+          </div>
+
+          <!-- BAĞIŞÇI LİSTESİ -->
           <div class="card">
             <div class="card-header">
               <span class="card-title">Bağışçı Listesi</span>
               <span id="bagiscilar-toplam" style="font-size:0.82rem;color:#9ca3af"></span>
             </div>
             <div class="tablo-araclari">
-              <input class="arama-input" id="bagiscilar-arama" placeholder="Ad, telefon veya kod ara..." oninput="bagiscilarAramaGecikme()">
+              <input class="arama-input" id="bagiscilar-arama" placeholder="Ad, telefon, uniq kod veya CRM kod ara..." oninput="bagiscilarAramaGecikme()">
               <select class="filtre-select" id="bagiscilar-limit" onchange="bagiscilarYukle(1)">
                 <option value="50">50 satır</option>
                 <option value="100">100 satır</option>
@@ -410,11 +451,46 @@
             </div>
             <div class="tablo-wrapper">
               <table>
-                <thead><tr><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke Kodu</th><th>Uniq Kod</th><th>Bağış Sayısı</th><th>Kayıt Tarihi</th></tr></thead>
-                <tbody id="bagiscilar-tbody"><tr><td colspan="7" class="empty">Yükleniyor...</td></tr></tbody>
+                <thead><tr><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Tarih</th><th></th></tr></thead>
+                <tbody id="bagiscilar-tbody"><tr><td colspan="9" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
             <div class="pagination" id="bagiscilar-pagination"></div>
+          </div>
+        </div>
+
+        <!-- BAĞIŞÇI DÜZENLE MODAL -->
+        <div class="modal-overlay" id="bagisci-duzenle-modal">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="modal-title">Bağışçı Düzenle</span>
+              <button class="modal-kapat" onclick="document.getElementById('bagisci-duzenle-modal').classList.remove('acik')">×</button>
+            </div>
+            <div id="bd-hata" class="alert alert-error" style="display:none"></div>
+            <div id="bd-basari" class="alert alert-success" style="display:none"></div>
+            <input type="hidden" id="bd-id">
+            <div class="form-group">
+              <label>Adı Soyadı</label>
+              <input type="text" class="form-control" id="bd-ad-soyad">
+            </div>
+            <div class="form-group">
+              <label>Telefon</label>
+              <input type="text" class="form-control mono" id="bd-telefon">
+              <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">Boş bırakırsan telefon silinir. Otomatik normalize edilir.</small>
+            </div>
+            <div class="form-group">
+              <label>CRM Kod</label>
+              <input type="text" class="form-control" id="bd-crm-kod">
+            </div>
+            <div class="form-group" style="margin-top:20px">
+              <label style="color:#9ca3af">Uniq Kod (değiştirilemez)</label>
+              <input type="text" class="form-control mono" id="bd-uniq-kod" readonly style="background:#f9fafb">
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" onclick="bagisciSil()" style="margin-right:auto;color:#dc2626;border-color:#fecaca">🗑️ Sil</button>
+              <button class="btn btn-outline" onclick="document.getElementById('bagisci-duzenle-modal').classList.remove('acik')">İptal</button>
+              <button class="btn btn-primary" id="bd-kaydet-btn" onclick="bagisciKaydet()">Kaydet</button>
+            </div>
           </div>
         </div>
 
@@ -590,17 +666,16 @@
                 <div id="wa-header-grup" style="display:none" class="form-group">
                   <label id="wa-header-label">Header</label>
                   <input type="text" class="form-control" id="wa-header-input" oninput="waOnizleme()">
-                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">
-                    Placeholder kullanabilirsin: <code>{BAGISCI_ADI_SOYADI}</code> <code>{UNIQ_KOD}</code>
-                  </small>
+                  <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                    <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-header-input','{BAGISCI_ADI_SOYADI}')">+ Ad Soyad</button>
+                    <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-header-input','{UNIQ_KOD}')">+ Uniq Kod</button>
+                    <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-header-input','{CRM_KOD}')">+ CRM Kod</button>
+                  </div>
                 </div>
 
                 <div class="form-group">
                   <label>Body Değişkenleri</label>
                   <div class="wa-vars" id="wa-body-vars"></div>
-                  <small style="color:#9ca3af;font-size:0.78rem;margin-top:6px;display:block">
-                    Her giriş için <code>{BAGISCI_ADI_SOYADI}</code> ve <code>{UNIQ_KOD}</code> placeholder'larını kullanabilirsin.
-                  </small>
                 </div>
 
                 <div id="wa-footer-grup" style="display:none" class="form-group">
@@ -802,6 +877,7 @@
                   <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                     <button class="btn-placeholder" onclick="placeholder('{BAGISCI_ADI_SOYADI}')">+ Bağışçı Adı Soyadı</button>
                     <button class="btn-placeholder" onclick="placeholder('{UNIQ_KOD}')">+ Uniq Kod</button>
+                    <button class="btn-placeholder" onclick="placeholder('{CRM_KOD}')">+ CRM Kod</button>
                   </div>
                 </div>
                 <div class="form-group">
@@ -1055,11 +1131,128 @@
         <td class="mono">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
         <td>${b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>'}</td>
         <td><span class="mono" style="background:#f1f5f9;padding:3px 8px;border-radius:6px;letter-spacing:2px">${b.uniq_kod}</span></td>
+        <td>${b.crm_kod ? `<span class="mono" style="background:#eff6ff;color:#1d4ed8;padding:3px 8px;border-radius:6px">${esc(b.crm_kod)}</span>` : '<span style="color:#d1d5db">—</span>'}</td>
         <td style="text-align:center">${b.bagis_sayisi}</td>
         <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick='bagisciDuzenleAc(${JSON.stringify(b)})'>✏️</button></td>
       </tr>`).join('');
       renderPagination('bagiscilar', data, sayfa);
-    } catch { tbody.innerHTML = `<tr><td colspan="7" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="9" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  // --- CRM IMPORT ---
+  let crmDosya = null;
+  const crmDz = document.getElementById('crm-drop-zone');
+  if (crmDz) {
+    crmDz.addEventListener('dragover', e => { e.preventDefault(); crmDz.classList.add('drag-over'); });
+    crmDz.addEventListener('dragleave', () => crmDz.classList.remove('drag-over'));
+    crmDz.addEventListener('drop', e => { e.preventDefault(); crmDz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) crmSetDosya(f); });
+  }
+  function crmDosyaSec(input) { if (input.files[0]) crmSetDosya(input.files[0]); }
+  function crmSetDosya(f) {
+    crmDosya = f;
+    document.getElementById('crm-dosya-adi').textContent = '✓ ' + f.name;
+    document.getElementById('crm-yukle-btn').disabled = false;
+  }
+
+  async function crmYukle() {
+    if (!crmDosya) return;
+    const btn = document.getElementById('crm-yukle-btn');
+    const hata = document.getElementById('crm-hata');
+    const basari = document.getElementById('crm-basari');
+    hata.style.display = 'none'; basari.style.display = 'none';
+    document.getElementById('crm-sonuc').style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> İşleniyor...';
+    const fd = new FormData();
+    fd.append('excel', crmDosya);
+    try {
+      const res = await fetch('/admin/api/bagiscilar/crm-import', { method: 'POST', credentials: 'include', body: fd });
+      const data = await res.json();
+      if (data.basarili) {
+        basari.textContent = `✓ İşlem tamamlandı: ${data.ozet.eslesen} eşleşme, ${data.ozet.eslesmeyen} eşleşmedi.`;
+        basari.style.display = 'block';
+        crmOzetGoster(data.ozet);
+        bagiscilarYukle(1);
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'CRM Kodlarını Eşle ve Kaydet'; }
+  }
+
+  function crmOzetGoster(ozet) {
+    document.getElementById('crm-ozet-grid').innerHTML = [
+      { sayi: ozet.toplamSatir, etiket: 'Toplam' },
+      { sayi: ozet.eslesen, etiket: 'Eşleşen', renk: '#16a34a' },
+      { sayi: ozet.eslesmeyen, etiket: 'Eşleşmeyen', renk: '#dc2626' },
+      { sayi: ozet.bos, etiket: 'Boş Satır' },
+      { sayi: ozet.hata, etiket: 'Hata', renk: '#dc2626' },
+    ].map(i => `<div class="ozet-item"><div class="sayi" style="${i.renk ? `color:${i.renk}` : ''}">${i.sayi}</div><div class="etiket">${i.etiket}</div></div>`).join('');
+
+    const tablo = document.getElementById('crm-eslesmeyen-tablo');
+    if (ozet.eslesmeyenSatirlar && ozet.eslesmeyenSatirlar.length > 0) {
+      tablo.innerHTML = `<h3 style="margin:14px 0 10px;color:#dc2626;font-size:0.95rem">Eşleşmeyen / Hatalı Satırlar (${ozet.eslesmeyenSatirlar.length})</h3>
+        <div class="tablo-wrapper" style="max-height:280px;overflow-y:auto"><table>
+          <thead><tr><th>Satır</th><th>Telefon</th><th>CRM Kod</th><th>Sebep</th></tr></thead>
+          <tbody>${ozet.eslesmeyenSatirlar.map(s => `<tr>
+            <td>${s.satirNo}</td><td class="mono">${esc(s.telefon)}</td><td>${esc(s.crm_kod)}</td><td style="color:#dc2626">${esc(s.sebep)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+    } else tablo.innerHTML = '';
+    document.getElementById('crm-sonuc').style.display = 'block';
+  }
+
+  // --- BAĞIŞÇI DÜZENLE ---
+  function bagisciDuzenleAc(b) {
+    document.getElementById('bd-hata').style.display = 'none';
+    document.getElementById('bd-basari').style.display = 'none';
+    document.getElementById('bd-id').value = b.id;
+    document.getElementById('bd-ad-soyad').value = b.ad_soyad || '';
+    document.getElementById('bd-telefon').value = b.telefon || '';
+    document.getElementById('bd-crm-kod').value = b.crm_kod || '';
+    document.getElementById('bd-uniq-kod').value = b.uniq_kod || '';
+    document.getElementById('bagisci-duzenle-modal').classList.add('acik');
+  }
+
+  async function bagisciKaydet() {
+    const btn = document.getElementById('bd-kaydet-btn');
+    const hata = document.getElementById('bd-hata');
+    const basari = document.getElementById('bd-basari');
+    hata.style.display = 'none'; basari.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Kaydediliyor...';
+    const id = document.getElementById('bd-id').value;
+    try {
+      const res = await fetch('/admin/api/bagiscilar/' + id, {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ad_soyad: document.getElementById('bd-ad-soyad').value,
+          telefon: document.getElementById('bd-telefon').value,
+          crm_kod: document.getElementById('bd-crm-kod').value,
+        }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        basari.textContent = '✓ Bağışçı güncellendi.';
+        basari.style.display = 'block';
+        bagiscilarYukle(bagiscilarSayfa);
+        setTimeout(() => document.getElementById('bagisci-duzenle-modal').classList.remove('acik'), 800);
+      } else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
+    } catch { hata.textContent = 'Bağlantı hatası.'; hata.style.display = 'block'; }
+    finally { btn.disabled = false; btn.textContent = 'Kaydet'; }
+  }
+
+  async function bagisciSil() {
+    const id = document.getElementById('bd-id').value;
+    if (!confirm('Bağışçı silinecek. Bu bağışçıya ait bağışların bagisci_id\'si null olacak. Devam edilsin mi?')) return;
+    try {
+      const res = await fetch('/admin/api/bagiscilar/' + id, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) {
+        document.getElementById('bagisci-duzenle-modal').classList.remove('acik');
+        bagiscilarYukle(bagiscilarSayfa);
+      } else {
+        document.getElementById('bd-hata').textContent = data.mesaj;
+        document.getElementById('bd-hata').style.display = 'block';
+      }
+    } catch {}
   }
 
   // --- SMS BAĞIŞÇI LİSTESİ ---
@@ -1132,7 +1325,8 @@
     const template = document.getElementById('sms-template').value;
     const ornek = template
       .replace(/\{BAGISCI_ADI_SOYADI\}/g, 'Ahmet Yılmaz')
-      .replace(/\{UNIQ_KOD\}/g, 'AB12CD34');
+      .replace(/\{UNIQ_KOD\}/g, 'AB12CD34')
+      .replace(/\{CRM_KOD\}/g, 'CRM-12345');
     document.getElementById('sms-onizleme').textContent = ornek || 'Şablonu doldurun...';
     document.getElementById('sms-karakter').textContent = ornek.length + ' karakter';
   }
@@ -1532,9 +1726,16 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
       bodyEl.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem">Bu template\'in body değişkeni yok.</div>';
     } else {
       bodyEl.innerHTML = Array.from({length: bodyCount}, (_, i) => `
-        <div class="wa-var-row">
-          <span class="wa-var-label">Body {{${i+1}}}</span>
-          <input type="text" class="form-control" id="wa-body-${i}" placeholder="Örn: Merhaba {BAGISCI_ADI_SOYADI}" oninput="waOnizleme()">
+        <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:#fafbff;border-radius:8px">
+          <div class="wa-var-row">
+            <span class="wa-var-label">Body {{${i+1}}}</span>
+            <input type="text" class="form-control" id="wa-body-${i}" placeholder="Örn: Merhaba {BAGISCI_ADI_SOYADI}" oninput="waOnizleme()">
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:118px">
+            <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-body-${i}','{BAGISCI_ADI_SOYADI}')">+ Ad Soyad</button>
+            <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-body-${i}','{UNIQ_KOD}')">+ Uniq Kod</button>
+            <button class="btn-placeholder" onclick="waPlaceholderEkle('wa-body-${i}','{CRM_KOD}')">+ CRM Kod</button>
+          </div>
         </div>
       `).join('');
     }
@@ -1551,10 +1752,24 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     waOnizleme();
   }
 
+  function waPlaceholderEkle(inputId, metin) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    el.value = el.value.slice(0, start) + metin + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + metin.length;
+    el.focus();
+    waOnizleme();
+  }
+
   function waOnizleme() {
     if (!waSeciliTemplate) return;
-    const ornek = { ad_soyad: 'Ahmet Yılmaz', uniq_kod: 'AB12CD34' };
-    const doldur = (s) => String(s || '').replace(/\{BAGISCI_ADI_SOYADI\}/g, ornek.ad_soyad).replace(/\{UNIQ_KOD\}/g, ornek.uniq_kod);
+    const ornek = { ad_soyad: 'Ahmet Yılmaz', uniq_kod: 'AB12CD34', crm_kod: 'CRM-12345' };
+    const doldur = (s) => String(s || '')
+      .replace(/\{BAGISCI_ADI_SOYADI\}/g, ornek.ad_soyad)
+      .replace(/\{UNIQ_KOD\}/g, ornek.uniq_kod)
+      .replace(/\{CRM_KOD\}/g, ornek.crm_kod);
 
     const parcalar = [];
     const header = document.getElementById('wa-header-input').value;

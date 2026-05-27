@@ -48,7 +48,8 @@ function placeholderDoldur(metin, bagisci) {
   if (!metin) return '';
   return String(metin)
     .replace(/\{BAGISCI_ADI_SOYADI\}/g, bagisci.ad_soyad || '')
-    .replace(/\{UNIQ_KOD\}/g, bagisci.uniq_kod || '');
+    .replace(/\{UNIQ_KOD\}/g, bagisci.uniq_kod || '')
+    .replace(/\{CRM_KOD\}/g, bagisci.crm_kod || '');
 }
 
 function hataDetayCikar(err) {

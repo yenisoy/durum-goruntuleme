@@ -107,25 +107,30 @@ async function templateSend(config, { templateName, languageCode, customerPhone,
 
   const url = `${config.baseUrl.replace(/\/$/, '')}/api/${config.slug}/custom-functions/template-app/api/template/send.js`;
 
-  const res = await axios.post(
-    url,
-    {
-      phoneNumber: config.businessPhone,
-      templateMessageName: templateName,
-      languageCode: languageCode || 'tr',
-      customerPhoneNumber: customerPhone,
-      variables,
-    },
-    {
+  const payload = {
+    phoneNumber: config.businessPhone,
+    templateMessageName: templateName,
+    languageCode: languageCode || 'tr',
+    customerPhoneNumber: customerPhone,
+    variables,
+  };
+
+  try {
+    const res = await axios.post(url, payload, {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiToken}`,
       },
       timeout: 30000,
+    });
+    return res.data;
+  } catch (err) {
+    // Hata mesajına gönderdiğimiz payload'ı da ekle (debug için)
+    if (err.response) {
+      err.gondrilenPayload = payload;
     }
-  );
-
-  return res.data;
+    throw err;
+  }
 }
 
 module.exports = {

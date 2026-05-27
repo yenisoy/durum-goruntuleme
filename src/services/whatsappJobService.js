@@ -214,21 +214,22 @@ async function jobIsle(kullaniciId, jobId) {
 
       const bodyParams = (bodyInputs || []).map(b => wa.placeholderDoldur(b, bagisciData));
 
-      // BUTTONS: her button için parameter
+      // BUTTONS: her variable'lı buton için ayrı parameter
+      // WhatsApp Cloud API formatı: type=button (lowercase), sub_type=url/quick_reply,
+      // index=string, parameters=[{type:'text', text:'value'}]
       const buttonComponents = [];
       if (Array.isArray(templateSnapshot)) {
         const btnComp = templateSnapshot.find(c => c.type === 'BUTTONS');
         if (btnComp && Array.isArray(btnComp.buttons)) {
           btnComp.buttons.forEach((btn, idx) => {
-            // Sadece variable'ı olan butonlar payload'a girer
             const subType = (btn.type || 'URL').toLowerCase();
-            if (btn.has_variable && buttonInputs[idx] !== undefined) {
+            if (btn.has_variable && buttonInputs[idx] !== undefined && buttonInputs[idx] !== null) {
               const val = wa.placeholderDoldur(buttonInputs[idx], bagisciData);
               buttonComponents.push({
-                type: 'BUTTON',
+                type: 'button',
                 sub_type: subType,
                 index: String(idx),
-                parameters: [val],
+                parameters: [{ type: 'text', text: String(val) }],
               });
             }
           });

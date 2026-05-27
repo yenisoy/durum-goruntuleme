@@ -17,5 +17,7 @@ coverage/
 dist/
 build/
 test-bagislar.xlsx
+test-crm.xlsx
+test-*.xlsx
 .claude/
 docker-compose.override.yml

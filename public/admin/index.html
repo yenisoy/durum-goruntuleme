@@ -167,6 +167,14 @@
     .json-editor { width: 100%; min-height: 250px; font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.5; padding: 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; resize: vertical; }
     .json-editor.invalid { border-color: #dc2626; background: #fef2f2; }
 
+    /* SORTABLE HEADERS */
+    th.sortable { cursor: pointer; user-select: none; transition: background 0.15s; }
+    th.sortable:hover { background: #f3f4f6; }
+    th.sortable .sort-arrow { display: inline-block; margin-left: 4px; color: #cbd5e1; font-size: 0.7rem; }
+    th.sortable.active .sort-arrow { color: #16213e; font-weight: 700; }
+    tr.row-clickable { cursor: pointer; }
+    tr.row-clickable:hover td { background: #f5f9ff !important; }
+
     /* JOB STATUS */
     .durum-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
     .durum-running { background: #dbeafe; color: #1d4ed8; }
@@ -764,10 +772,14 @@
                 <div class="tablo-wrapper">
                   <table>
                     <thead><tr>
-                      <th class="cb-cell"></th><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Uniq Kod</th>
-                      <th title="Bu bağışçıya ait toplam bağış sayısı">🎁 Bağış</th>
-                      <th title="Bu bağışçının uniq kodla yaptığı sorgu sayısı">🔍 Sorgu</th>
-                      <th title="Bu bağışçıya başarıyla gönderilen WhatsApp sayısı">📱 WA</th>
+                      <th class="cb-cell"></th>
+                      <th class="sortable" data-sort="id" onclick="waSiralamaTik('id')">ID<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="ad_soyad" onclick="waSiralamaTik('ad_soyad')">Adı Soyadı<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="telefon" onclick="waSiralamaTik('telefon')">Telefon<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="uniq_kod" onclick="waSiralamaTik('uniq_kod')">Uniq Kod<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="bagis_sayisi" onclick="waSiralamaTik('bagis_sayisi')" title="Toplam bağış">🎁 Bağış<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="sorgu_sayisi" onclick="waSiralamaTik('sorgu_sayisi')" title="Sorgu sayısı">🔍 Sorgu<span class="sort-arrow">⇅</span></th>
+                      <th class="sortable" data-sort="wa_sayisi" onclick="waSiralamaTik('wa_sayisi')" title="WhatsApp gönderim">📱 WA<span class="sort-arrow">⇅</span></th>
                     </tr></thead>
                     <tbody id="wa-bagisci-tbody"><tr><td colspan="8" class="empty">Yükleniyor...</td></tr></tbody>
                   </table>
@@ -1875,6 +1887,34 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
   let waSecilenBagisciIds = new Set();
   let waBagisciSayfa = 1, waBagisciAramaTimer;
   let waJobPollTimer = null;
+  let waSiralamaKolon = null;   // örn 'ad_soyad', 'bagis_sayisi'
+  let waSiralamaYon = 'asc';    // 'asc' | 'desc'
+
+  function waSiralamaTik(kolon) {
+    if (waSiralamaKolon === kolon) {
+      // asc → desc → varsayılan (null)
+      if (waSiralamaYon === 'asc') waSiralamaYon = 'desc';
+      else { waSiralamaKolon = null; waSiralamaYon = 'asc'; }
+    } else {
+      waSiralamaKolon = kolon;
+      waSiralamaYon = 'asc';
+    }
+    waBagisciYukle(1);
+  }
+
+  function waSiralamaBaslikGuncelle() {
+    document.querySelectorAll('#sayfa-whatsapp th.sortable').forEach(th => {
+      const kolon = th.dataset.sort;
+      const arrow = th.querySelector('.sort-arrow');
+      if (waSiralamaKolon === kolon) {
+        th.classList.add('active');
+        if (arrow) arrow.textContent = waSiralamaYon === 'asc' ? '↑' : '↓';
+      } else {
+        th.classList.remove('active');
+        if (arrow) arrow.textContent = '⇅';
+      }
+    });
+  }
 
   async function waSayfaInit() {
     await waConfigOzet();
@@ -2399,9 +2439,14 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
     const limit = document.getElementById('wa-bagisci-limit').value;
     const tbody = document.getElementById('wa-bagisci-tbody');
     tbody.innerHTML = `<tr><td colspan="8" class="empty"><span class="spinner" style="color:#d1d5db"></span></td></tr>`;
+    waSiralamaBaslikGuncelle();
     try {
       const params = new URLSearchParams({ sayfa, limit });
       if (arama) params.set('arama', arama);
+      if (waSiralamaKolon) {
+        params.set('siralama', waSiralamaKolon);
+        params.set('yon', waSiralamaYon);
+      }
       const res = await fetch('/admin/api/bagiscilar?' + params, { credentials: 'include' });
       const data = await res.json();
       if (!data.basarili || data.veri.length === 0) {
@@ -2421,8 +2466,8 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
         const sayiBadge = (n, renk) => n > 0
           ? `<span class="badge" style="background:${renk[0]};color:${renk[1]};min-width:24px;display:inline-block;text-align:center">${n}</span>`
           : '<span style="color:#d1d5db">—</span>';
-        return `<tr>
-          <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${waSecilenBagisciIds.has(b.id) ? 'checked' : ''} onchange="waTekSecim(${b.id}, this.checked)"></td>
+        return `<tr class="row-clickable" onclick="waSatirTik(event, ${b.id})">
+          <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${waSecilenBagisciIds.has(b.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="waTekSecim(${b.id}, this.checked)"></td>
           <td>${b.id}</td>
           <td>${esc(b.ad_soyad)}</td>
           <td class="mono" style="font-size:0.8rem">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}${!b.ulke_kodu_var_mi ? ' <span class="badge badge-uyari" title="Ülke kodu eksik">!</span>' : ''}</td>
@@ -2440,6 +2485,15 @@ x-secret-key: ${kullaniciSecretKey || 'SECRET_KEY'}
   function waTekSecim(id, secili) {
     if (secili) waSecilenBagisciIds.add(id); else waSecilenBagisciIds.delete(id);
     waSecilenSayiGuncelle();
+  }
+
+  function waSatirTik(event, id) {
+    // Eğer doğrudan input'a tıklanmışsa native onchange ilgilenir, biz dokunmayalım
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'A' || event.target.tagName === 'BUTTON') return;
+    const cb = event.currentTarget.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    cb.checked = !cb.checked;
+    waTekSecim(id, cb.checked);
   }
   function waHepsiniSec(secili) {
     document.querySelectorAll('#wa-bagisci-tbody input[type="checkbox"]').forEach(cb => {

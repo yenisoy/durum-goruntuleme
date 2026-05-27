@@ -1,12 +1,26 @@
 const pool = require('../config/database');
 
+const SIRALAMA_KOLON_MAP = {
+  id: 'b.id',
+  ad_soyad: 'b.ad_soyad',
+  telefon: 'b.telefon',
+  uniq_kod: 'b.uniq_kod',
+  crm_kod: 'b.crm_kod',
+  bagis_sayisi: 'bagis_sayisi',
+  sorgu_sayisi: 'b.sorgu_sayisi',
+  wa_sayisi: 'wa_sayisi',
+  created_at: 'b.created_at',
+};
+
 async function bagiscilarListele(req, res) {
   const kullaniciId = req.session.kullaniciId;
   const sayfa = Math.max(1, parseInt(req.query.sayfa) || 1);
   const limit = Math.min(100000, Math.max(1, parseInt(req.query.limit) || 50));
   const offset = (sayfa - 1) * limit;
   const arama = req.query.arama ? `%${req.query.arama}%` : null;
-  const crmFiltre = req.query.crm_filtre; // 'var' | 'yok' | undefined
+  const crmFiltre = req.query.crm_filtre;
+  const siralamaKolon = SIRALAMA_KOLON_MAP[req.query.siralama] || null;
+  const yon = req.query.yon === 'desc' ? 'DESC' : 'ASC';
 
   try {
     const kosullar = ['b.kullanici_id = $1'];
@@ -41,7 +55,7 @@ async function bagiscilarListele(req, res) {
            ) AS wa_sayisi
          FROM bagiscilar b
          ${where}
-         ORDER BY bagis_sayisi DESC, b.id ASC
+         ORDER BY ${siralamaKolon ? `${siralamaKolon} ${yon} NULLS LAST, b.id ASC` : 'bagis_sayisi DESC, b.id ASC'}
          LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
         listParams
       ),

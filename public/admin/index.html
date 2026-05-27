@@ -379,11 +379,17 @@
                 <option value="10000">10.000 satır</option>
                 <option value="100000">Tümü</option>
               </select>
+              <span style="flex:1"></span>
+              <strong id="bagislar-secilen" style="color:#16213e;font-size:0.85rem">0 seçildi</strong>
+              <button class="btn btn-outline btn-sm" id="bagislar-toplu-sil-btn" onclick="bagislarTopluSil()" disabled style="color:#dc2626;border-color:#fecaca">🗑️ Seçilenleri Sil</button>
             </div>
             <div class="tablo-wrapper">
               <table>
-                <thead><tr><th>ID</th><th>Excel ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Kimin Adına</th><th>Referans</th><th>Durum</th><th>Bağışçı</th><th>Tarih</th></tr></thead>
-                <tbody id="bagislar-tbody"><tr><td colspan="9" class="empty">Yükleniyor...</td></tr></tbody>
+                <thead><tr>
+                  <th class="cb-cell"><input type="checkbox" id="bagislar-tum-cb" onchange="bagislarHepsiniSec(this.checked)"></th>
+                  <th>ID</th><th>Excel ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Kimin Adına</th><th>Referans</th><th>Durum</th><th>Bağışçı</th><th>Tarih</th><th></th>
+                </tr></thead>
+                <tbody id="bagislar-tbody"><tr><td colspan="11" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
             <div class="pagination" id="bagislar-pagination"></div>
@@ -410,8 +416,10 @@
                     <tr><td style="padding:6px 14px;border:1px solid #e5e7eb">5551234567</td><td style="padding:6px 14px;border:1px solid #e5e7eb">CRM-67890</td></tr>
                   </tbody>
                 </table>
-                <p style="font-size:0.8rem;color:#9ca3af;margin-top:10px">
-                  Başlık adları: <code>Telefon / Cep Telefonu / GSM / Phone</code> ve <code>CRM Kod / CRM / Kod</code> kabul edilir.
+                <p style="font-size:0.8rem;color:#9ca3af;margin-top:10px;line-height:1.7">
+                  <strong>Format:</strong> .xlsx, .xls, .csv (büyük/küçük harf farketmez, alt çizgi-tire serbest)<br>
+                  <strong>Telefon başlıkları:</strong> <code>Telefon / Cep Telefonu / GSM / Phone / Mobile / Tel</code><br>
+                  <strong>CRM başlıkları:</strong> <code>CRM Kod / CRM / Kod / mvr_uid / mvruid / UID / Customer ID</code>
                 </p>
               </div>
             </div>
@@ -420,9 +428,10 @@
             <div class="form-group" style="margin-top:14px">
               <div class="drop-zone" id="crm-drop-zone" onclick="document.getElementById('crm-dosya-input').click()" style="padding:20px">
                 <div class="icon" style="font-size:1.8rem">📋</div>
-                <p><strong>CRM Excel'ini buraya sürükle</strong> veya tıkla</p>
+                <p><strong>CRM dosyasını buraya sürükle</strong> veya tıkla</p>
+                <p style="font-size:0.78rem;color:#9ca3af">.xlsx, .xls, .csv kabul edilir</p>
                 <div class="file-chosen" id="crm-dosya-adi"></div>
-                <input type="file" id="crm-dosya-input" accept=".xls,.xlsx" onchange="crmDosyaSec(this)">
+                <input type="file" id="crm-dosya-input" accept=".xls,.xlsx,.csv" onchange="crmDosyaSec(this)">
               </div>
             </div>
             <button class="btn btn-primary" id="crm-yukle-btn" onclick="crmYukle()" disabled style="width:100%">CRM Kodlarını Eşle ve Kaydet</button>
@@ -448,11 +457,17 @@
                 <option value="10000">10.000 satır</option>
                 <option value="100000">Tümü</option>
               </select>
+              <span style="flex:1"></span>
+              <strong id="bagiscilar-secilen" style="color:#16213e;font-size:0.85rem">0 seçildi</strong>
+              <button class="btn btn-outline btn-sm" id="bagiscilar-toplu-sil-btn" onclick="bagiscilarTopluSil()" disabled style="color:#dc2626;border-color:#fecaca">🗑️ Seçilenleri Sil</button>
             </div>
             <div class="tablo-wrapper">
               <table>
-                <thead><tr><th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Tarih</th><th></th></tr></thead>
-                <tbody id="bagiscilar-tbody"><tr><td colspan="9" class="empty">Yükleniyor...</td></tr></tbody>
+                <thead><tr>
+                  <th class="cb-cell"><input type="checkbox" id="bagiscilar-tum-cb" onchange="bagiscilarHepsiniSec(this.checked)"></th>
+                  <th>ID</th><th>Adı Soyadı</th><th>Telefon</th><th>Ülke</th><th>Uniq Kod</th><th>CRM Kod</th><th>Bağış</th><th>Tarih</th><th></th>
+                </tr></thead>
+                <tbody id="bagiscilar-tbody"><tr><td colspan="10" class="empty">Yükleniyor...</td></tr></tbody>
               </table>
             </div>
             <div class="pagination" id="bagiscilar-pagination"></div>
@@ -1098,6 +1113,7 @@
       document.getElementById('bagislar-toplam').textContent = `Toplam: ${data.toplam} kayıt`;
       if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="9" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagislar', data, sayfa); return; }
       tbody.innerHTML = data.veri.map(b => `<tr>
+        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${bagislarSeciliSet.has(b.id) ? 'checked' : ''} onchange="bagisTekSecim(${b.id}, this.checked)"></td>
         <td>${b.id}</td><td class="mono">${b.excel_id}</td><td>${esc(b.ad_soyad)}</td>
         <td class="mono">${esc(b.cep_telefonu)}${!b.cep_no_ulke_kodu_var_mi ? ' <span class="badge badge-uyari">!</span>' : ''}</td>
         <td>${esc(b.kimin_adina) || '<span style="color:#d1d5db">—</span>'}</td>
@@ -1105,9 +1121,11 @@
         <td><span class="badge badge-${b.durum}">${b.durum === 'kesildi' ? 'Kesildi' : 'Bekliyor'}</span></td>
         <td>${b.bagisci_adi ? esc(b.bagisci_adi) : '<span style="color:#d1d5db">—</span>'}</td>
         <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="bagisSil(${b.id})" style="color:#dc2626;border-color:#fecaca" title="Sil">🗑️</button></td>
       </tr>`).join('');
+      bagisSecimGuncelle();
       renderPagination('bagislar', data, sayfa);
-    } catch { tbody.innerHTML = `<tr><td colspan="9" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="11" class="empty">Bağlantı hatası.</td></tr>`; }
   }
 
   // --- BAĞIŞÇILAR ---
@@ -1127,6 +1145,7 @@
       document.getElementById('bagiscilar-toplam').textContent = `Toplam: ${data.toplam} bağışçı`;
       if (data.veri.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Kayıt bulunamadı.</td></tr>`; renderPagination('bagiscilar', data, sayfa); return; }
       tbody.innerHTML = data.veri.map(b => `<tr>
+        <td class="cb-cell"><input type="checkbox" data-id="${b.id}" ${bagiscilarSeciliSet.has(b.id) ? 'checked' : ''} onchange="bagisciTekSecim(${b.id}, this.checked)"></td>
         <td>${b.id}</td><td>${esc(b.ad_soyad)}</td>
         <td class="mono">${esc(b.telefon) || '<span style="color:#d1d5db">—</span>'}</td>
         <td>${b.ulke_kodu_var_mi ? '<span class="badge" style="background:#dcfce7;color:#166534">✓</span>' : '<span class="badge badge-uyari">Eksik</span>'}</td>
@@ -1136,8 +1155,95 @@
         <td style="color:#9ca3af;font-size:0.78rem">${tarihFormat(b.created_at)}</td>
         <td><button class="btn btn-outline btn-sm" onclick='bagisciDuzenleAc(${JSON.stringify(b)})'>✏️</button></td>
       </tr>`).join('');
+      bagisciSecimGuncelle();
       renderPagination('bagiscilar', data, sayfa);
-    } catch { tbody.innerHTML = `<tr><td colspan="9" class="empty">Bağlantı hatası.</td></tr>`; }
+    } catch { tbody.innerHTML = `<tr><td colspan="10" class="empty">Bağlantı hatası.</td></tr>`; }
+  }
+
+  // --- BAĞIŞÇI/BAĞIŞ TOPLU SEÇİM ---
+  const bagiscilarSeciliSet = new Set();
+  const bagislarSeciliSet = new Set();
+
+  function bagisciTekSecim(id, secili) {
+    if (secili) bagiscilarSeciliSet.add(id); else bagiscilarSeciliSet.delete(id);
+    bagisciSecimGuncelle();
+  }
+  function bagiscilarHepsiniSec(secili) {
+    document.querySelectorAll('#bagiscilar-tbody input[type="checkbox"]').forEach(cb => {
+      const id = parseInt(cb.dataset.id);
+      cb.checked = secili;
+      if (secili) bagiscilarSeciliSet.add(id); else bagiscilarSeciliSet.delete(id);
+    });
+    bagisciSecimGuncelle();
+  }
+  function bagisciSecimGuncelle() {
+    document.getElementById('bagiscilar-secilen').textContent = bagiscilarSeciliSet.size + ' seçildi';
+    document.getElementById('bagiscilar-toplu-sil-btn').disabled = bagiscilarSeciliSet.size === 0;
+    const cb = document.querySelectorAll('#bagiscilar-tbody input[type="checkbox"]');
+    document.getElementById('bagiscilar-tum-cb').checked = cb.length > 0 && [...cb].every(c => c.checked);
+  }
+
+  async function bagiscilarTopluSil() {
+    if (bagiscilarSeciliSet.size === 0) return;
+    if (!confirm(`${bagiscilarSeciliSet.size} bağışçı silinecek. Bağışları kalır (bagisci_id null olur). Devam?`)) return;
+    try {
+      const res = await fetch('/admin/api/bagiscilar/toplu-sil', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...bagiscilarSeciliSet] }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        bagiscilarSeciliSet.clear();
+        bagiscilarYukle(bagiscilarSayfa);
+        alert(`✓ ${data.silinen} bağışçı silindi.`);
+      } else alert(data.mesaj);
+    } catch { alert('Bağlantı hatası.'); }
+  }
+
+  function bagisTekSecim(id, secili) {
+    if (secili) bagislarSeciliSet.add(id); else bagislarSeciliSet.delete(id);
+    bagisSecimGuncelle();
+  }
+  function bagislarHepsiniSec(secili) {
+    document.querySelectorAll('#bagislar-tbody input[type="checkbox"]').forEach(cb => {
+      const id = parseInt(cb.dataset.id);
+      cb.checked = secili;
+      if (secili) bagislarSeciliSet.add(id); else bagislarSeciliSet.delete(id);
+    });
+    bagisSecimGuncelle();
+  }
+  function bagisSecimGuncelle() {
+    document.getElementById('bagislar-secilen').textContent = bagislarSeciliSet.size + ' seçildi';
+    document.getElementById('bagislar-toplu-sil-btn').disabled = bagislarSeciliSet.size === 0;
+    const cb = document.querySelectorAll('#bagislar-tbody input[type="checkbox"]');
+    document.getElementById('bagislar-tum-cb').checked = cb.length > 0 && [...cb].every(c => c.checked);
+  }
+
+  async function bagisSil(id) {
+    if (!confirm('Bu bağış silinecek. Emin misiniz?')) return;
+    try {
+      const res = await fetch('/admin/api/bagislar/' + id, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json();
+      if (data.basarili) bagislarYukle(bagislarSayfa);
+      else alert(data.mesaj);
+    } catch { alert('Bağlantı hatası.'); }
+  }
+
+  async function bagislarTopluSil() {
+    if (bagislarSeciliSet.size === 0) return;
+    if (!confirm(`${bagislarSeciliSet.size} bağış silinecek. Devam?`)) return;
+    try {
+      const res = await fetch('/admin/api/bagislar/toplu-sil', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...bagislarSeciliSet] }),
+      });
+      const data = await res.json();
+      if (data.basarili) {
+        bagislarSeciliSet.clear();
+        bagislarYukle(bagislarSayfa);
+        alert(`✓ ${data.silinen} bağış silindi.`);
+      } else alert(data.mesaj);
+    } catch { alert('Bağlantı hatası.'); }
   }
 
   // --- CRM IMPORT ---

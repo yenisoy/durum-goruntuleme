@@ -1,4 +1,5 @@
 const ExcelJS = require('exceljs');
+const { Readable } = require('stream');
 const pool = require('../config/database');
 const { normalizeTelefon } = require('./telefonService');
 
@@ -8,17 +9,38 @@ function sutunNormalize(baslik) {
     .replace(/İ/g, 'i').replace(/I/g, 'ı')
     .replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
     .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
+    .replace(/[_\-./]+/g, ' ')   // alt çizgi/tire vs. boşluk gibi davransın
+    .replace(/\s+/g, ' ')         // çoklu boşluk → tek
     .trim();
 }
 
-const TEL_KEYS = ['telefon', 'cep telefonu', 'cep no', 'cep numarasi', 'cep numarası', 'gsm', 'numara', 'phone'];
-const KOD_KEYS = ['crm kod', 'crm kodu', 'crm', 'crm code', 'kod', 'code', 'müşteri kodu', 'musteri kodu'];
+const TEL_KEYS = [
+  'telefon', 'cep telefonu', 'cep no', 'cep numarasi', 'cep numarası',
+  'gsm', 'gsm no', 'numara', 'phone', 'phone number', 'mobile', 'mobil',
+  'tel', 'tel no'
+];
+const KOD_KEYS = [
+  'crm kod', 'crm kodu', 'crm', 'crm code', 'kod', 'code',
+  'müşteri kodu', 'musteri kodu', 'musteri kod',
+  'mvr uid', 'mvruid', 'mvr id', 'uid', 'müşteri id', 'musteri id',
+  'customer id', 'customer code', 'customer uid'
+];
 
-async function excelOkuVeIsle(buffer, kullaniciId) {
+async function excelOkuVeIsle(buffer, fileName, kullaniciId) {
+  const isCSV = (fileName || '').toLowerCase().endsWith('.csv');
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer);
-  const sheet = wb.worksheets[0];
-  if (!sheet) throw new Error('Excel dosyasında sayfa bulunamadı.');
+  let sheet;
+
+  if (isCSV) {
+    // ExcelJS CSV reader stream üzerinden çalışıyor
+    const stream = Readable.from(buffer);
+    sheet = await wb.csv.read(stream);
+  } else {
+    await wb.xlsx.load(buffer);
+    sheet = wb.worksheets[0];
+  }
+
+  if (!sheet) throw new Error('Dosyada okunabilecek sayfa bulunamadı.');
 
   const tumSatirlar = [];
   sheet.eachRow({ includeEmpty: false }, (row, n) => {

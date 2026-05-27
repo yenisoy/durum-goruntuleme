@@ -19,5 +19,6 @@ build/
 test-bagislar.xlsx
 test-crm.xlsx
 test-*.xlsx
+test-*.csv
 .claude/
 docker-compose.override.yml

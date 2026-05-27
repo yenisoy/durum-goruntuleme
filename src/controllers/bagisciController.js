@@ -89,14 +89,71 @@ async function bagisciSil(req, res) {
   }
 }
 
-async function crmImportYukle(req, res) {
-  if (!req.file) return res.status(400).json({ basarili: false, mesaj: 'Excel dosyası yüklenmedi.' });
+async function bagisciTopluSil(req, res) {
+  const kullaniciId = req.session.kullaniciId;
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ basarili: false, mesaj: 'Silinecek bağışçı seçilmedi.' });
+  }
   try {
-    const ozet = await crmImport.excelOkuVeIsle(req.file.buffer, req.session.kullaniciId);
+    const r = await pool.query(
+      'DELETE FROM bagiscilar WHERE kullanici_id = $1 AND id = ANY($2::int[]) RETURNING id',
+      [kullaniciId, ids.map(Number)]
+    );
+    res.json({ basarili: true, silinen: r.rowCount });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
+async function bagisSil(req, res) {
+  const kullaniciId = req.session.kullaniciId;
+  const id = parseInt(req.params.id);
+  try {
+    const r = await pool.query(
+      'DELETE FROM bagislar WHERE kullanici_id = $1 AND id = $2 RETURNING id',
+      [kullaniciId, id]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ basarili: false, mesaj: 'Bağış bulunamadı.' });
+    res.json({ basarili: true });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
+async function bagisTopluSil(req, res) {
+  const kullaniciId = req.session.kullaniciId;
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ basarili: false, mesaj: 'Silinecek bağış seçilmedi.' });
+  }
+  try {
+    const r = await pool.query(
+      'DELETE FROM bagislar WHERE kullanici_id = $1 AND id = ANY($2::int[]) RETURNING id',
+      [kullaniciId, ids.map(Number)]
+    );
+    res.json({ basarili: true, silinen: r.rowCount });
+  } catch (err) {
+    res.status(500).json({ basarili: false, mesaj: err.message });
+  }
+}
+
+async function crmImportYukle(req, res) {
+  if (!req.file) return res.status(400).json({ basarili: false, mesaj: 'Dosya yüklenmedi.' });
+  try {
+    const ozet = await crmImport.excelOkuVeIsle(
+      req.file.buffer,
+      req.file.originalname,
+      req.session.kullaniciId
+    );
     res.json({ basarili: true, ozet });
   } catch (err) {
     res.status(500).json({ basarili: false, mesaj: err.message });
   }
 }
 
-module.exports = { bagisciGuncelle, bagisciSil, crmImportYukle };
+module.exports = {
+  bagisciGuncelle, bagisciSil, bagisciTopluSil,
+  bagisSil, bagisTopluSil,
+  crmImportYukle,
+};

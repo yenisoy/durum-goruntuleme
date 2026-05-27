@@ -18,9 +18,12 @@ const upload = multer({
     const izinli = [
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'application/csv',
+      'application/vnd.ms-excel.sheet.macroEnabled.12',
     ];
-    if (izinli.includes(file.mimetype) || file.originalname.match(/\.(xls|xlsx)$/i)) cb(null, true);
-    else cb(new Error('Sadece .xls ve .xlsx dosyaları kabul edilir.'));
+    if (izinli.includes(file.mimetype) || file.originalname.match(/\.(xls|xlsx|csv)$/i)) cb(null, true);
+    else cb(new Error('Sadece .xls, .xlsx ve .csv dosyaları kabul edilir.'));
   },
   limits: { fileSize: 10 * 1024 * 1024 },
 });
@@ -35,8 +38,11 @@ router.post('/yukle', girisKontrol, upload.single('excel'), excelYukle);
 router.get('/bagiscilar', girisKontrol, bagiscilarListele);
 router.put('/bagiscilar/:id', girisKontrol, bgCtrl.bagisciGuncelle);
 router.delete('/bagiscilar/:id', girisKontrol, bgCtrl.bagisciSil);
+router.post('/bagiscilar/toplu-sil', girisKontrol, bgCtrl.bagisciTopluSil);
 router.post('/bagiscilar/crm-import', girisKontrol, upload.single('excel'), bgCtrl.crmImportYukle);
 router.get('/bagislar', girisKontrol, bagislarListele);
+router.delete('/bagislar/:id', girisKontrol, bgCtrl.bagisSil);
+router.post('/bagislar/toplu-sil', girisKontrol, bgCtrl.bagisTopluSil);
 
 router.get('/sms/config', girisKontrol, configGetir);
 router.post('/sms/config', girisKontrol, configGuncelle);

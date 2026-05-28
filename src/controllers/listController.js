@@ -10,6 +10,7 @@ const SIRALAMA_KOLON_MAP = {
   sorgu_sayisi: 'b.sorgu_sayisi',
   wa_sayisi: 'wa_sayisi',
   created_at: 'b.created_at',
+  updated_at: 'b.updated_at',
 };
 
 async function bagiscilarListele(req, res) {
@@ -32,6 +33,16 @@ async function bagiscilarListele(req, res) {
     }
     if (crmFiltre === 'var') kosullar.push("b.crm_kod IS NOT NULL AND b.crm_kod != ''");
     else if (crmFiltre === 'yok') kosullar.push("(b.crm_kod IS NULL OR b.crm_kod = '')");
+
+    // Tarih aralığı filtreleri (ISO format bekler)
+    if (req.query.guncelleme_baslangic) {
+      params.push(req.query.guncelleme_baslangic);
+      kosullar.push(`b.updated_at >= $${params.length}`);
+    }
+    if (req.query.guncelleme_bitis) {
+      params.push(req.query.guncelleme_bitis);
+      kosullar.push(`b.updated_at <= $${params.length}`);
+    }
 
     const where = 'WHERE ' + kosullar.join(' AND ');
     const listParams = [...params, limit, offset];

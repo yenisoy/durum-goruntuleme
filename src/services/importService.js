@@ -84,6 +84,14 @@ async function excelImport(buffer, varsayilanDurum = 'bekliyor', kullaniciId) {
           );
           ozet.olusturulanBagis++;
         }
+
+        // İlgili bağışçıların updated_at'ini güncelle
+        const guncellenecekIds = [bagisci.id];
+        if (referansId) guncellenecekIds.push(referansId);
+        await client.query(
+          `UPDATE bagiscilar SET updated_at = NOW() WHERE id = ANY($1::int[])`,
+          [guncellenecekIds]
+        );
       } catch (e) {
         ozet.hataSayisi++;
         ozet.hataliSatirlar.push({ satirNo, ID: veri.ID || '-', hata: e.message });

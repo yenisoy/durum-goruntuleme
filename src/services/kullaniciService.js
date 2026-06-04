@@ -82,7 +82,7 @@ async function secretKeyYenile(id) {
 
 async function netgsmConfigOku(kullaniciId) {
   const r = await pool.query(
-    `SELECT netgsm_username, netgsm_password, netgsm_appname, netgsm_msgheader
+    `SELECT netgsm_username, netgsm_password, netgsm_appname, netgsm_msgheader, netgsm_partnercode
      FROM kullanicilar WHERE id = $1`,
     [kullaniciId]
   );
@@ -93,10 +93,11 @@ async function netgsmConfigOku(kullaniciId) {
     password: row.netgsm_password || '',
     appname: row.netgsm_appname || '',
     msgheader: row.netgsm_msgheader || '',
+    partnercode: row.netgsm_partnercode || '',
   };
 }
 
-async function netgsmConfigKaydet(kullaniciId, { username, password, appname, msgheader }) {
+async function netgsmConfigKaydet(kullaniciId, { username, password, appname, msgheader, partnercode }) {
   // Şifre boşsa mevcut şifreyi koru
   if (!password) {
     const mevcut = await netgsmConfigOku(kullaniciId);
@@ -106,9 +107,10 @@ async function netgsmConfigKaydet(kullaniciId, { username, password, appname, ms
     `UPDATE kullanicilar SET
        netgsm_username = $1, netgsm_password = $2,
        netgsm_appname = $3, netgsm_msgheader = $4,
+       netgsm_partnercode = $5,
        updated_at = NOW()
-     WHERE id = $5`,
-    [username || '', password || '', appname || '', msgheader || '', kullaniciId]
+     WHERE id = $6`,
+    [username || '', password || '', appname || '', msgheader || '', partnercode || '', kullaniciId]
   );
 }
 

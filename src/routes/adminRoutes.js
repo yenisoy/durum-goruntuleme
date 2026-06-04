@@ -49,6 +49,7 @@ router.get('/sms/config', girisKontrol, configGetir);
 router.post('/sms/config', girisKontrol, configGuncelle);
 router.post('/sms/onizleme', girisKontrol, onizleme);
 router.post('/sms/gonder', girisKontrol, smsSend);
+router.post('/sms/test', girisKontrol, require('../controllers/smsController').testSms);
 
 router.get('/widget/sablon', girisKontrol, sablonGetir);
 router.get('/widget/indir', girisKontrol, widgetIndir);

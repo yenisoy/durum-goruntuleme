@@ -1,15 +1,14 @@
-const Netgsm = require('@netgsm/sms').default;
 const pool = require('../config/database');
 const k = require('./kullaniciService');
+const { sms_gonder } = require('./netgsmService');
 
-// Sadece ülke kodu olan numaraları kabul eder, 90 prefix'ini striperek döner
+// Netgsm'e sadece Türkiye numarası gider (ülke kodu olan 90 + 5XXXXXXXXX)
 function telefonNetgsmFormat(ham, ulkeKoduVarMi) {
-  if (!ulkeKoduVarMi) return null; // ülke kodu yoksa SMS gönderme
+  if (!ulkeKoduVarMi) return null;
   if (!ham) return null;
   const tel = String(ham).replace(/\D/g, '');
   if (tel.startsWith('90') && tel.length === 12) {
-    const local = tel.slice(2); // 90 prefix'ini at
-    if (local.startsWith('5') && local.length === 10) return local;
+    return tel; // sms_gonder normalize edecek; biz 905XXX formatında veriyoruz
   }
   return null;
 }
@@ -21,56 +20,34 @@ function mesajOlustur(template, bagisci) {
     .replace(/\{CRM_KOD\}/g, bagisci.crm_kod || '');
 }
 
-function hataDetayCikar(err) {
-  if (!err) return 'Bilinmeyen hata';
-  if (typeof err === 'string') return err;
-  if (typeof err !== 'object') return String(err);
-
-  // Netgsm yanıt formatı
-  if (err.response && err.response.data) {
-    const d = err.response.data;
-    if (typeof d === 'object') {
-      const parcalar = [];
-      if (d.code) parcalar.push(`Kod: ${d.code}`);
-      if (d.description) parcalar.push(d.description);
-      if (d.error) parcalar.push(d.error);
-      if (parcalar.length) return parcalar.join(' — ');
-      try { return JSON.stringify(d).slice(0, 250); } catch { return ''; }
-    }
-    return String(d).slice(0, 250);
-  }
-  if (err.description) return err.description;
-  if (err.code && err.message) return `Kod ${err.code}: ${err.message}`;
-  if (err.code) return `Hata kodu: ${err.code}`;
-  if (err.message) return err.message;
-
-  try { return JSON.stringify(err).slice(0, 250); } catch { return 'Hata detayı alınamadı'; }
-}
-
-// Netgsm response code'unu kontrol et
-function netgsmResponseKontrol(response) {
-  if (!response) return;
-  // SDK'nın döndürdüğü yapı: { code, jobid, description? }
-  const code = response.code || (response.data && response.data.code);
-  if (code && String(code) !== '00') {
-    const desc = response.description || (response.data && response.data.description);
-    throw new Error(`Netgsm reddetti — kod ${code}${desc ? ': ' + desc : ''}`);
-  }
-}
-
-async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs, iysfilter = '11') {
-  const config = await k.netgsmConfigOku(kullaniciId);
-  if (!config || !config.username || !config.password || !config.msgheader) {
+/**
+ * Toplu SMS gönderim — her bağışçı için ayrı istek atar (rate limit + per-recipient log için)
+ * @param {number} kullaniciId
+ * @param {number[]} bagisciIds
+ * @param {string} template
+ * @param {number} aralikMs
+ * @param {string} iysfilter - '0' (bilgilendirme) veya '' (ticari, partnercode gerekli)
+ */
+async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs, iysfilter = '0') {
+  const cfg = await k.netgsmConfigOku(kullaniciId);
+  if (!cfg || !cfg.username || !cfg.password || !cfg.msgheader) {
     throw new Error('Netgsm yapılandırması eksik. Lütfen ayarları kontrol edin.');
   }
 
-  const netgsm = new Netgsm({
-    username: config.username,
-    password: config.password,
-    appname: config.appname || undefined,
-  });
+  // Ticari mesaj seçildiyse partnercode olmadan gönderme
+  if (iysfilter === '' && !cfg.partnercode) {
+    throw new Error('Ticari mesaj göndermek için Partner Code (İYS marka kodu) tanımlı olmalı.');
+  }
 
-  // SADECE kullanıcının kendi bağışçıları + ülke kodu olanlar
+  const netgsmConfig = {
+    usercode: cfg.username,
+    password: cfg.password,
+    header: cfg.msgheader,
+    iysfilter: iysfilter,
+    partnercode: cfg.partnercode || undefined,
+    encoding: 'TR',
+  };
+
   const bagiscilar = await pool.query(
     `SELECT id, ad_soyad, telefon, ulke_kodu_var_mi, uniq_kod, crm_kod FROM bagiscilar
      WHERE kullanici_id = $1 AND id = ANY($2) AND telefon IS NOT NULL`,
@@ -89,32 +66,31 @@ async function topluSmsSend(kullaniciId, bagisciIds, template, aralikMs, iysfilt
         id: b.id, ad: b.ad_soyad, tel: b.telefon,
         durum: 'atlandı',
         sebep: b.ulke_kodu_var_mi
-          ? 'Telefon formatı geçersiz (5XXXXXXXXX bekleniyor)'
-          : 'Ülke kodu (90) yok — sadece 90 prefixli numaralara gönderilir',
+          ? 'Telefon formatı geçersiz (905XXXXXXXXX bekleniyor)'
+          : 'Ülke kodu (90) yok',
       });
       continue;
     }
 
     const mesaj = mesajOlustur(template, b);
 
-    try {
-      const istek = {
-        msgheader: config.msgheader,
-        encoding: 'TR',
-        messages: [{ msg: mesaj, no: tel }],
-      };
-      // İYS filtresi: '11' = Bilgilendirme (İYS izni gerekmez), '12' = Ticari (İYS izni gerekir)
-      if (iysfilter) istek.iysfilter = String(iysfilter);
-      const response = await netgsm.sendRestSms(istek);
-      netgsmResponseKontrol(response);
+    const sonuc = await sms_gonder(netgsmConfig, tel, mesaj);
+
+    if (sonuc.success) {
       sonuclar.basarili++;
-      sonuclar.detay.push({ id: b.id, ad: b.ad_soyad, tel, durum: 'gönderildi' });
-    } catch (err) {
+      sonuclar.detay.push({
+        id: b.id, ad: b.ad_soyad, tel,
+        durum: 'gönderildi',
+        kod: sonuc.code,
+        jobid: sonuc.jobid,
+      });
+    } else {
       sonuclar.basarisiz++;
       sonuclar.detay.push({
         id: b.id, ad: b.ad_soyad, tel,
         durum: 'hata',
-        sebep: hataDetayCikar(err),
+        kod: sonuc.code,
+        sebep: `[${sonuc.code}] ${sonuc.description}`,
       });
     }
 

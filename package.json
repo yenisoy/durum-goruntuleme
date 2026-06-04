@@ -9,7 +9,6 @@
     "migrate": "node src/config/migrate.js"
   },
   "dependencies": {
-    "@netgsm/sms": "^1.1.11",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^9.0.1",

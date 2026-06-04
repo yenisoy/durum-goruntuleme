@@ -81,6 +81,9 @@ BEGIN
     ALTER TABLE whatsapp_job_items ADD COLUMN response_status INTEGER;
     ALTER TABLE whatsapp_job_items ADD COLUMN response_data JSONB;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kullanicilar' AND column_name = 'netgsm_partnercode') THEN
+    ALTER TABLE kullanicilar ADD COLUMN netgsm_partnercode VARCHAR(100);
+  END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_bagiscilar_crm_kod ON bagiscilar(crm_kod);

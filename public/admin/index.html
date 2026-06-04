@@ -227,10 +227,13 @@
 
     <!-- NETGSM TAB -->
     <div id="ayar-icerik-netgsm">
+      <div class="alert alert-info" style="font-size:0.82rem;margin-bottom:14px">
+        🌐 <strong>NetGSM REST v2</strong> API'sini kullanıyoruz. NetGSM panelinden API erişimi açılmalı ve sunucu IP'si whitelist'e eklenmiş olmalı.
+      </div>
       <div id="ayarlar-hata" class="alert alert-error" style="display:none"></div>
       <div id="ayarlar-basari" class="alert alert-success" style="display:none"></div>
       <div class="form-group">
-        <label>Kullanıcı Adı (Abone No)</label>
+        <label>Kullanıcı Adı (usercode)</label>
         <input type="text" class="form-control" id="cfg-username" placeholder="850xxxxxxx">
       </div>
       <div class="form-group">
@@ -242,9 +245,26 @@
         <input type="text" class="form-control" id="cfg-msgheader" placeholder="ONAYLIBASLIK">
       </div>
       <div class="form-group">
-        <label>Proje Adı (appname — opsiyonel)</label>
-        <input type="text" class="form-control" id="cfg-appname" placeholder="Bagis Sistemi">
+        <label>Partner Code (İYS marka kodu — sadece ticari mesaj için)</label>
+        <input type="text" class="form-control" id="cfg-partnercode" placeholder="Opsiyonel">
+        <small style="color:#9ca3af;font-size:0.78rem;margin-top:4px;display:block">
+          Bilgilendirme mesajları için gerekli değil. Ticari mesaj göndereceksen İYS panelinden alacağın marka kodu burayı doldurmalı.
+        </small>
       </div>
+      <div class="form-group" style="display:none">
+        <label>Proje Adı (appname — kullanılmıyor)</label>
+        <input type="text" class="form-control" id="cfg-appname" placeholder="">
+      </div>
+
+      <div style="border-top:1px solid #f3f4f6;padding-top:14px;margin-top:14px">
+        <label style="font-size:0.85rem;font-weight:600;color:#374151">🧪 Hızlı Test</label>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" class="form-control mono" id="cfg-test-tel" placeholder="905XXXXXXXXX" style="flex:1">
+          <button class="btn btn-outline btn-sm" onclick="netgsmTestGonder()" id="cfg-test-btn">Test SMS Gönder</button>
+        </div>
+        <div id="cfg-test-sonuc" style="margin-top:10px"></div>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="modalKapat()">İptal</button>
         <button class="btn btn-primary" id="ayarlar-kaydet-btn" onclick="ayarlariKaydet()">Netgsm Kaydet</button>
@@ -1653,8 +1673,8 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
         <div style="font-size:0.85rem;line-height:2">
           <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Kullanıcı</span><span>${c.username || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
           <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Başlık</span><span>${c.msgheader || '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Proje Adı</span><span>${c.appname || '—'}</span></div>
           <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">API Şifresi</span><span>${c.password ? '••••••••' : '<span style="color:#dc2626">Girilmedi</span>'}</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:#9ca3af">Partner Code</span><span>${c.partnercode || '<span style="color:#9ca3af">—</span>'}</span></div>
         </div>
         <div style="margin-top:12px">
           <span class="badge" style="background:${tamam ? '#dcfce7' : '#fef2f2'};color:${tamam ? '#166534' : '#dc2626'}">${tamam ? '✓ Yapılandırıldı' : '⚠ Eksik ayar'}</span>
@@ -1681,6 +1701,9 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
         document.getElementById('cfg-password').value = '';
         document.getElementById('cfg-msgheader').value = data.config.msgheader || '';
         document.getElementById('cfg-appname').value = data.config.appname || '';
+        document.getElementById('cfg-partnercode').value = data.config.partnercode || '';
+        document.getElementById('cfg-test-tel').value = '';
+        document.getElementById('cfg-test-sonuc').innerHTML = '';
       }
     } catch {}
     // WhatsApp config yükle
@@ -1716,13 +1739,46 @@ Authorization: Bearer &lt;API_TOKEN&gt;</pre>
           password: document.getElementById('cfg-password').value,
           msgheader: document.getElementById('cfg-msgheader').value,
           appname: document.getElementById('cfg-appname').value,
+          partnercode: document.getElementById('cfg-partnercode').value,
         }),
       });
       const data = await res.json();
       if (data.basarili) { basari.textContent = 'Ayarlar kaydedildi.'; basari.style.display = 'block'; smsConfigOzet(); }
       else { hata.textContent = data.mesaj; hata.style.display = 'block'; }
     } catch { hata.textContent = 'Sunucu hatası.'; hata.style.display = 'block'; }
-    finally { btn.disabled = false; btn.textContent = 'Kaydet'; }
+    finally { btn.disabled = false; btn.textContent = 'Netgsm Kaydet'; }
+  }
+
+  async function netgsmTestGonder() {
+    const tel = document.getElementById('cfg-test-tel').value.trim();
+    const sonucEl = document.getElementById('cfg-test-sonuc');
+    if (!tel) { sonucEl.innerHTML = '<div class="alert alert-error" style="font-size:0.82rem">Telefon numarası gir.</div>'; return; }
+    const btn = document.getElementById('cfg-test-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Gönderiliyor...';
+    sonucEl.innerHTML = '';
+    try {
+      const res = await fetch('/admin/api/sms/test', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefon: tel, mesaj_tipi: 'bilgilendirme' }),
+      });
+      const data = await res.json();
+      if (data.basarili && data.sonuc) {
+        const s = data.sonuc;
+        const renk = s.success ? 'success' : 'error';
+        sonucEl.innerHTML = `
+          <div class="alert alert-${renk}" style="font-size:0.82rem">
+            <strong>${s.success ? '✓ Başarılı' : '✗ Hata'} — Kod: ${esc(s.code)}</strong><br>
+            ${esc(s.description || '')}
+            ${s.jobid ? `<br><span style="color:#9ca3af">Job ID: ${esc(String(s.jobid))}</span>` : ''}
+          </div>
+          ${s.request ? `<details style="margin-top:8px;font-size:0.78rem"><summary style="cursor:pointer;color:#6b7280">📤 Gönderilen istek (debug)</summary><pre style="background:#1e293b;color:#e2e8f0;padding:10px;border-radius:6px;margin-top:6px;font-size:0.74rem;overflow:auto">${esc(JSON.stringify(s.request, null, 2))}</pre></details>` : ''}
+          ${s.response ? `<details style="margin-top:6px;font-size:0.78rem"><summary style="cursor:pointer;color:#6b7280">📥 Gelen cevap (debug)</summary><pre style="background:#1e293b;color:#e2e8f0;padding:10px;border-radius:6px;margin-top:6px;font-size:0.74rem;overflow:auto">${esc(JSON.stringify(s.response, null, 2))}</pre></details>` : ''}
+        `;
+      } else {
+        sonucEl.innerHTML = `<div class="alert alert-error" style="font-size:0.82rem">${esc(data.mesaj || 'Bilinmeyen hata')}</div>`;
+      }
+    } catch { sonucEl.innerHTML = '<div class="alert alert-error" style="font-size:0.82rem">Bağlantı hatası.</div>'; }
+    finally { btn.disabled = false; btn.textContent = 'Test SMS Gönder'; }
   }
 
   // Modal dışına tıklayınca kapat
